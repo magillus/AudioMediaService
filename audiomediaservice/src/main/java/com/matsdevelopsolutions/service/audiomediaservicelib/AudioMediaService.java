@@ -20,6 +20,11 @@ public class AudioMediaService extends Service
         MediaPlayer.OnInfoListener, MediaPlayer.OnSeekCompleteListener {
 
     /**
+     * Action's name prepended with this package name.
+     */
+    public static final String PACKAGE_NAME = "com.matsdevelopsolutions.service.audiomediaservicelib.";
+
+    /**
      * Intent action to start playback of media.
      * Required Extras:
      * <li>{SOURCE_URL_ARG} - Media Url - (optional if already media source is loaded) - plays a media stream</li>
@@ -118,7 +123,6 @@ public class AudioMediaService extends Service
      */
     static final int FLAG_NOTIFICATION_PALLETE_BACKGROUND = 0b1000;
     static final int DEFAULT_NOTIFICATION_FLAG = FLAG_NOTIFICATION_SHOW + FLAG_NOTIFICATION_SHOW_BUTTON_PLAY_TOGGLE + FLAG_NOTIFICATION_PALLETE_BACKGROUND;
-    private static final String PACKAGE_NAME = "com.matsdevelopsolutions.service.audiomediaservicelib.";
     /**
      * Logging tag.
      */
