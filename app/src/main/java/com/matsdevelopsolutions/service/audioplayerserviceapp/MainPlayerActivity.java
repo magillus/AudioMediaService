@@ -1,4 +1,4 @@
-package com.perlak.mateusz.service.audioplayerserviceapp;
+package com.matsdevelopsolutions.service.audioplayerserviceapp;
 
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
@@ -6,12 +6,6 @@ import android.view.Menu;
 import android.view.MenuItem;
 
 public class MainPlayerActivity extends AppCompatActivity {
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main_player);
-    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -33,5 +27,11 @@ public class MainPlayerActivity extends AppCompatActivity {
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main_player);
     }
 }

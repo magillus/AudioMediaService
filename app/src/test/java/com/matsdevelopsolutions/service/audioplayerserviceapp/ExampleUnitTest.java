@@ -1,4 +1,4 @@
-package com.perlak.mateusz.service.audioplayerserviceapp;
+package com.matsdevelopsolutions.service.audioplayerserviceapp;
 
 import org.junit.Test;
 

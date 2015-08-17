@@ -1,4 +1,4 @@
-package com.perlak.mateusz.service.audiomediaservicelib;
+package com.matsdevelopsolutions.service.audiomediaservicelib;
 
 import android.app.Application;
 import android.test.ApplicationTestCase;
