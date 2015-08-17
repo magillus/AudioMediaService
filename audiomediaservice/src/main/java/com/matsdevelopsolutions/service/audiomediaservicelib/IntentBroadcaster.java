@@ -1,6 +1,7 @@
 package com.matsdevelopsolutions.service.audiomediaservicelib;
 
 import android.content.Context;
+import android.content.Intent;
 
 /**
  * Broadcasts intents for an defined actions
@@ -23,7 +24,18 @@ public class IntentBroadcaster {
     public static final String ACTION_MEDIA_INFO_CHANGE = IntentBroadcaster.class.getName() + ".ACTION_MEDIA_INFO_CHANGE";
 
 
+    /**
+     * Media info value = Intent extra argument.
+     */
+    static final String MEDIA_INFO_ARG = "MEDIA_INFO_ARG";
+    /**
+     * Buffer progress value - Intent extra argument.
+     */
     static final String BUFFER_PROGRESS_ARG = "BUFFER_PROGRESS_ARG";
+    /**
+     * Media player status - Intent extra argument.
+     */
+    static final String MEDIA_STATUS_ARG = "MEDIA_STATUS_ARG";
     /**
      * Context.
      */
@@ -44,7 +56,9 @@ public class IntentBroadcaster {
      * @param state
      */
     public void stateChange(MediaPlayerState state) {
-
+        Intent intent = new Intent(ACTION_STATE_CHANGE);
+        intent.putExtra(MEDIA_STATUS_ARG, state.name());
+        context.sendBroadcast(intent);
     }
 
     /**

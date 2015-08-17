@@ -31,12 +31,17 @@ public abstract class MediaBufferProgressBroadcastReceiver extends BroadcastRece
      */
     @Override
     public void onReceive(Context context, Intent intent) {
-        int bufferProgressValue = intent.getIntExtra(IntentBroadcaster.BUFFER_PROGRESS_ARG, -1);
-        if (bufferProgressValue >= 0) {
-            onBufferProgressChanged(bufferProgressValue);
-        } else {
-            Log.w(TAG, String.format("Recieved wrong value in %s intent.", IntentBroadcaster.ACTION_BUFFER_PROGRESS));
+        try {
+            int bufferProgressValue = intent.getIntExtra(IntentBroadcaster.BUFFER_PROGRESS_ARG, -1);
+            if (bufferProgressValue >= 0) {
+                onBufferProgressChanged(bufferProgressValue);
+            } else {
+                Log.w(TAG, String.format("Received wrong value in %s intent.", IntentBroadcaster.ACTION_BUFFER_PROGRESS));
+            }
+        } catch (Exception ex) {
+            Log.w(TAG, String.format("Error receiving intent %s.", IntentBroadcaster.ACTION_BUFFER_PROGRESS));
         }
+
     }
 
     /**
