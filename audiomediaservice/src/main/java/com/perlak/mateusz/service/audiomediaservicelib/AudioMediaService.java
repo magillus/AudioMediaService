@@ -16,10 +16,15 @@ import java.io.IOException;
  */
 public class AudioMediaService extends Service implements MediaPlayer.OnCompletionListener, MediaPlayer.OnErrorListener, MediaPlayer.OnInfoListener, MediaPlayer.OnSeekCompleteListener {
 
+    private static final String PACKAGE_NAME = "com.perlak.mateusz.service.audiomediaservicelib.";
+    public static final String ACTION_PLAY = PACKAGE_NAME + "AudioMediaService.PLAY";
+
+    private static final String SOURCE_URL_ARG = "SOURCE_URL_ARG";
 
     private static final String TAG = AudioMediaService.class.getSimpleName();
     private MediaPlayer mediaPlayer;
     private MediaPlayerState playerState;
+    private String mediaStreamUrl;
 
     public AudioMediaService() {
         initMediaPlayer();
@@ -28,6 +33,37 @@ public class AudioMediaService extends Service implements MediaPlayer.OnCompleti
     @Override
     public IBinder onBind(Intent intent) {
         throw new UnsupportedOperationException("Communication with service allowed only through Intents. Use IntentGenerator");
+    }
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        String action = intent.getAction();
+        if (action == null) {
+            return super.onStartCommand(intent, flags, startId);
+        }
+        switch (action) {
+            case ACTION_PLAY:
+                String newUrl = fetchStringParameter(intent, SOURCE_URL_ARG);
+                if (newUrl.equalsIgnoreCase(mediaStreamUrl)) {
+                    // same stream
+                    start();
+                } else {
+                    // enable autoplay and
+                }
+                // fetch extra data
+
+                return START_CONTINUATION_MASK;
+
+        }
+
+        return super.onStartCommand(intent, flags, startId);
+    }
+
+    private String fetchStringParameter(Intent intent, String argName) {
+        if (intent.hasExtra(argName)) {
+            return intent.getStringExtra(argName);
+        }
+        return null;
     }
 
     private void initMediaPlayer() {
