@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.IBinder;
+import android.support.annotation.Nullable;
 import android.util.Log;
 
 import java.io.IOException;
@@ -14,7 +15,9 @@ import java.io.IOException;
  * Interaction with AudioMediaService happens through Intent calls.
  * Notification branding and action flags are also passed through Intent calls.
  */
-public class AudioMediaService extends Service implements MediaPlayer.OnCompletionListener, MediaPlayer.OnErrorListener, MediaPlayer.OnInfoListener, MediaPlayer.OnSeekCompleteListener {
+public class AudioMediaService extends Service
+        implements MediaPlayer.OnCompletionListener, MediaPlayer.OnErrorListener,
+        MediaPlayer.OnInfoListener, MediaPlayer.OnSeekCompleteListener {
 
     /**
      * Intent action to start playback of media.
@@ -50,67 +53,72 @@ public class AudioMediaService extends Service implements MediaPlayer.OnCompleti
      * <li>{NOTIFICATION_CONFIG_FLAG_ARG} - flags to enable/disable features on notification</li>
      */
     public static final String ACTION_NOTIFICATION_STYLE = PACKAGE_NAME + "AudioMediaService.NOTIFICATION_STYLE";
-    private static final String PACKAGE_NAME = "com.matsdevelopsolutions.service.audiomediaservicelib.";
+    /**
+     * Intent to play/pause toggle.
+     */
+    public static final String ACTION_PLAY_TOGGLE = PACKAGE_NAME + "AudioMediaService.PLAY_TOGGLE";
     /**
      * Media source url extras name.
      */
-    private static final String SOURCE_URL_ARG = "SOURCE_URL_ARG";
+    static final String SOURCE_URL_ARG = "SOURCE_URL_ARG";
     /**
      * Media source title extras name.
      */
-    private static final String SOURCE_TITLE_ARG = "SOURCE_TITLE_ARG";
+    static final String SOURCE_TITLE_ARG = "SOURCE_TITLE_ARG";
     /**
      * Media source short description extras name.
      */
-    private static final String SOURCE_DESC_ARG = "SOURCE_DESC_ARG";
+    static final String SOURCE_DESC_ARG = "SOURCE_DESC_ARG";
     /**
      * Media source art/icon URI extras name.
      */
-    private static final String SOURCE_ART_URI_ARG = "SOURCE_ART_URI_ARG";
+    static final String SOURCE_ART_URI_ARG = "SOURCE_ART_URI_ARG";
     /**
      * Media source seek position in seconds extras name.
      */
-    private static final String SEEK_POSITION_ARG = "SEEK_POSITION_ARG";
-
+    static final String SEEK_POSITION_ARG = "SEEK_POSITION_ARG";
+    /**
+     * Media auto play extra name.
+     */
+    static final String AUTO_PLAY_ARG = "AUTO_PLAY_ARG";
     /**
      * Notification style extras name.
      */
-    private static final String NOTIFICATION_STYLE_ARG = "NOTIFICATION_STYLE_ARG";
+    static final String NOTIFICATION_STYLE_ARG = "NOTIFICATION_STYLE_ARG";
     /**
      * Notification configuration flag extras name.
      */
-    private static final String NOTIFICATION_CONFIG_FLAG_ARG = "NOTIFICATION_CONFIG_FLAG_ARG";
-
+    static final String NOTIFICATION_CONFIG_FLAG_ARG = "NOTIFICATION_CONFIG_FLAG_ARG";
     /**
      * Notification style normal - Notification style flag.
      */
-    private static final String FLAG_NOTIFICATION_STYLE_NORMAL = "FLAG_NOTIFICATION_STYLE_NORMAL";
+    static final String FLAG_NOTIFICATION_STYLE_NORMAL = "FLAG_NOTIFICATION_STYLE_NORMAL";
     /**
      * Notification style compact - Notification style flag.
      */
-    private static final String FLAG_NOTIFICATION_STYLE_COMPACT = "FLAG_NOTIFICATION_STYLE_COMPACT";
-
+    static final String FLAG_NOTIFICATION_STYLE_COMPACT = "FLAG_NOTIFICATION_STYLE_COMPACT";
     /**
      * Hide notification - Notification configuration flag.
      */
-    private static final int FLAG_NOTIFICATION_HIDE = 0;
+    static final int FLAG_NOTIFICATION_HIDE = 0;
     /**
      * Show notification - Notification configuration flag.
      */
-    private static final int FLAG_NOTIFICATION_SHOW = 0b1;
+    static final int FLAG_NOTIFICATION_SHOW = 0b1;
     /**
-     * Show play/pause as toggle - Notification configuration flag.
+     * Show play/pause as toggle - Notification configuration flag. (todo: flag might be always on and not needed)
      */
-    private static final int FLAG_NOTIFICATION_SHOW_BUTTON_PLAY_TOGGLE = 0b10;
+    static final int FLAG_NOTIFICATION_SHOW_BUTTON_PLAY_TOGGLE = 0b10;
     /**
      * Show stop/close button - Notification configuration flag.
      */
-    private static final int FLAG_NOTIFICATION_SHOW_BUTTON_STOP = 0b100;
+    static final int FLAG_NOTIFICATION_SHOW_BUTTON_STOP = 0b100;
     /**
      * Use pallette colors based on art's image - Notification configuration flag.
      */
-    private static final int FLAG_NOTIFICATION_PALLETE_BACKGROUND = 0b1000;
-
+    static final int FLAG_NOTIFICATION_PALLETE_BACKGROUND = 0b1000;
+    static final int DEFAULT_NOTIFICATION_FLAG = FLAG_NOTIFICATION_SHOW + FLAG_NOTIFICATION_SHOW_BUTTON_PLAY_TOGGLE + FLAG_NOTIFICATION_PALLETE_BACKGROUND;
+    private static final String PACKAGE_NAME = "com.matsdevelopsolutions.service.audiomediaservicelib.";
     /**
      * Logging tag.
      */
@@ -124,22 +132,47 @@ public class AudioMediaService extends Service implements MediaPlayer.OnCompleti
      */
     private MediaPlayerState playerState;
 
+    /**
+     * Notification manager instance.
+     */
     private NotificationManager notificationManager;
-    private String mediaStreamUrl;
+    /**
+     * Intent updates Broadcaster
+     */
+    private IntentBroadcaster intentBroadcaster;
 
+    /**
+     * Currently playing media info.
+     */
+    private MediaInfo mediaInfo;
+
+    /**
+     * Flag if video autoplays.
+     */
+    private boolean autoplay;
+
+    /**
+     * Sets state of the media player.
+     *
+     * @param state state of media player
+     */
     protected void setPlayerState(MediaPlayerState state) {
-        this.playerState = state;
-        // broadcast state change Intent
+        setPlayerState(state, true);
     }
 
+    /**
+     * Creates instance of {AudioMediaService}.
+     */
     public AudioMediaService() {
         initMediaPlayer();
-        notificationManager = new NotificationManager();
+        // todo: initialize only when notification is enabled - it does by default.
+        notificationManager = new NotificationManager(this);
+        intentBroadcaster = new IntentBroadcaster(this);
     }
 
     @Override
     public IBinder onBind(Intent intent) {
-        throw new UnsupportedOperationException("Communication with service allowed only through Intents. Use IntentGenerator");
+        throw new UnsupportedOperationException("Communication with service allowed only through Intents. Use MediaService to generate intents.");
     }
 
     @Override
@@ -150,15 +183,45 @@ public class AudioMediaService extends Service implements MediaPlayer.OnCompleti
         }
         switch (action) {
             case ACTION_PLAY:
+                // parse arguments and optionals
                 String newUrl = fetchStringParameter(intent, SOURCE_URL_ARG);
-                if (newUrl.equalsIgnoreCase(mediaStreamUrl)) {
-                    // same stream
+                updateMediaInfoFromIntent(intent);
+                if (newUrl.equalsIgnoreCase(mediaInfo.streamUrl)) {
+                    // same stream - just start
                     start();
                 } else {
-                    // enable autoplay and
+                    // enable autoplay and load
+                    autoplay = fetchBooleanParameter(intent, AUTO_PLAY_ARG, true);
+                    setDataSource(mediaInfo.streamUrl, true);
+                    // check for notification details in intent
+                    String style = fetchStringParameter(intent, NOTIFICATION_STYLE_ARG, notificationManager.getCurrentStyle());
+                    int flag = fetchIntParameter(intent, NOTIFICATION_CONFIG_FLAG_ARG, notificationManager.getCurrentFlags());
+                    notificationManager.updateStyle(style, flag, mediaInfo);
                 }
-                // fetch extra data
-
+                break;
+            case ACTION_PLAY_TOGGLE:
+                if (playerState == MediaPlayerState.STARTED) {
+                    pause();
+                } else {
+                    start();
+                }
+                break;
+            case ACTION_PAUSE:
+                pause();
+                break;
+            case ACTION_STOP:
+                stop();
+                break;
+            case ACTION_SEEK:
+                int position = fetchIntParameter(intent, SEEK_POSITION_ARG, 0);
+                seekTo(position);
+                break;
+            case ACTION_NOTIFICATION_STYLE:
+                String style = fetchStringParameter(intent, NOTIFICATION_STYLE_ARG);
+                int flag = fetchIntParameter(intent, NOTIFICATION_CONFIG_FLAG_ARG, DEFAULT_NOTIFICATION_FLAG);
+                updateMediaInfoFromIntent(intent);
+                notificationManager.updateStyle(style, flag, mediaInfo);
+            default:
                 return START_CONTINUATION_MASK;
 
         }
@@ -176,6 +239,7 @@ public class AudioMediaService extends Service implements MediaPlayer.OnCompleti
         // report error
         // broadcast error from player
         setPlayerState(MediaPlayerState.ERROR);
+
         return true;
     }
 
@@ -191,9 +255,22 @@ public class AudioMediaService extends Service implements MediaPlayer.OnCompleti
     }
 
     /**
+     * Sets state of the media player.
+     *
+     * @param state     state of media player
+     * @param broadcast if true, the state change is broadcasted with intent.
+     */
+    protected void setPlayerState(MediaPlayerState state, boolean broadcast) {
+        this.playerState = state;
+        if (broadcast) {
+            intentBroadcaster.stateChange(state);
+        }
+    }
+
+    /**
      * Safe reset of media Player instance.
      */
-    protected void reset(boolean force) {
+    protected void reset(final boolean force) {
         if (!playerAtStates(MediaPlayerState.END, MediaPlayerState.ERROR)) {
             mediaPlayer.reset();
         } else if (force) {
@@ -208,7 +285,7 @@ public class AudioMediaService extends Service implements MediaPlayer.OnCompleti
      * @param url
      * @param force if true, it forces to set data source, if state is not IDLE it will reset media player.
      */
-    protected void setDataSource(String url, boolean force) {
+    protected void setDataSource(final String url, final boolean force) {
         if (playerAtStates(MediaPlayerState.IDLE)) {
             try {
                 mediaPlayer.setDataSource(this, Uri.parse(url));
@@ -218,6 +295,10 @@ public class AudioMediaService extends Service implements MediaPlayer.OnCompleti
         } else if (force) {
             reset(true);
             setDataSource(url, false);
+            if (autoplay) {
+                prepare();
+            }
+            setPlayerState(MediaPlayerState.INITIALIZED);
         }
     }
 
@@ -237,6 +318,9 @@ public class AudioMediaService extends Service implements MediaPlayer.OnCompleti
             try {
                 mediaPlayer.prepare();
                 setPlayerState(MediaPlayerState.PREPARED);
+                if (autoplay) {
+                    start();
+                }
             } catch (IOException e) {
                 Log.w(TAG, "Prepare of data source is not possible.", e);
             }
@@ -248,10 +332,14 @@ public class AudioMediaService extends Service implements MediaPlayer.OnCompleti
      *
      * @param pos
      */
-    protected void seekTo(int pos) {
+    protected void seekTo(final int pos) {
         if (playerAtStates(MediaPlayerState.STARTED, MediaPlayerState.COMPLETE,
                 MediaPlayerState.PREPARED, MediaPlayerState.PAUSED)) {
-            mediaPlayer.seekTo(pos);
+            if (pos > 0) {
+                mediaPlayer.seekTo(pos);
+            } else {
+                mediaPlayer.seekTo(0);
+            }
         }
     }
 
@@ -267,6 +355,16 @@ public class AudioMediaService extends Service implements MediaPlayer.OnCompleti
     }
 
     /**
+     * Safe pause playback MediaPlayer method.
+     */
+    protected void pause() {
+        if (playerAtStates(MediaPlayerState.STARTED)) {
+            mediaPlayer.pause();
+            setPlayerState(MediaPlayerState.PAUSED);
+        }
+    }
+
+    /**
      * Safe stop playback MediaPlayer method.
      */
     protected void stop() {
@@ -277,13 +375,100 @@ public class AudioMediaService extends Service implements MediaPlayer.OnCompleti
         }
     }
 
-    private String fetchStringParameter(Intent intent, String argName) {
+    private void updateMediaInfoFromIntent(Intent intent) {
+        String title = fetchStringParameter(intent, SOURCE_TITLE_ARG);
+        String description = fetchStringParameter(intent, SOURCE_DESC_ARG);
+        String artUriString = fetchStringParameter(intent, SOURCE_ART_URI_ARG);
+        String newUrl = fetchStringParameter(intent, SOURCE_URL_ARG);
+        boolean changes = false;
+        changes |= hasValueChanged(newUrl, mediaInfo.streamUrl);
+        changes |= hasValueChanged(title, mediaInfo.title);
+        changes |= hasValueChanged(description, mediaInfo.description);
+        changes |= hasValueChanged(artUriString, mediaInfo.artUri);
+        if (changes) {
+            mediaInfo.streamUrl = newUrl;
+            mediaInfo.title = title;
+            mediaInfo.description = description;
+            mediaInfo.artUri = artUriString;
+            notificationManager.updateMediaInfo(mediaInfo);
+        }
+
+    }
+
+    private boolean hasValueChanged(String valueA, String valueB) {
+        if (valueA == null && valueB == null) {
+            return false;
+        } else if (valueA != null) {
+            return !valueA.equals(valueB);
+        }
+        return true;
+    }
+
+    /**
+     * Fetches integer argument from intent extras if exists.
+     * Returns default if doesn't exists.
+     *
+     * @param intent
+     * @param argName
+     * @param defaultValue
+     * @return
+     */
+    private int fetchIntParameter(final Intent intent, final String argName, final int defaultValue) {
+        if (intent.hasExtra(argName)) {
+            return intent.getIntExtra(argName, defaultValue);
+        }
+        return defaultValue;
+    }
+
+    /**
+     * Fetches String argument from intent extras if exists.
+     * Returns null if doesn't exists.
+     *
+     * @param intent
+     * @param argName
+     * @return
+     */
+    @Nullable
+    private String fetchStringParameter(final Intent intent, final String argName) {
+        return fetchStringParameter(intent, argName, null);
+    }
+
+    /**
+     * Fetches String argument from intent extra if exists.
+     * Returns {defaultValue} if doesn't exists
+     *
+     * @param intent
+     * @param argName
+     * @param defaultValue
+     * @return
+     */
+    @Nullable
+    private String fetchStringParameter(final Intent intent, final String argName, final String defaultValue) {
         if (intent.hasExtra(argName)) {
             return intent.getStringExtra(argName);
         }
-        return null;
+        return defaultValue;
     }
 
+    /**
+     * Fetches boolean argument from intent extras if exists.
+     * Returns default if doesn't exists.
+     *
+     * @param intent
+     * @param argName
+     * @param defaultValue
+     * @return
+     */
+    private boolean fetchBooleanParameter(final Intent intent, final String argName, final boolean defaultValue) {
+        if (intent.hasExtra(argName)) {
+            return intent.getBooleanExtra(argName, defaultValue);
+        }
+        return defaultValue;
+    }
+
+    /**
+     * Initialize media player, releases previous isntance if was created.s
+     */
     private void initMediaPlayer() {
         if (mediaPlayer != null) {
             mediaPlayer.release();
@@ -303,7 +488,7 @@ public class AudioMediaService extends Service implements MediaPlayer.OnCompleti
      * @param states State array
      * @return true if state is currently supported, false if not.
      */
-    private boolean playerAtStates(MediaPlayerState... states) {
+    private boolean playerAtStates(final MediaPlayerState... states) {
         for (MediaPlayerState state : states) {
             if (state == playerState) {
                 return true;
