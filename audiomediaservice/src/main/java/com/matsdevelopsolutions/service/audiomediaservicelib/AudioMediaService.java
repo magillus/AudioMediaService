@@ -1,7 +1,9 @@
 package com.matsdevelopsolutions.service.audiomediaservicelib;
 
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
+import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.IBinder;
@@ -17,7 +19,7 @@ import java.io.IOException;
  */
 public class AudioMediaService extends Service
         implements MediaPlayer.OnCompletionListener, MediaPlayer.OnErrorListener,
-        MediaPlayer.OnInfoListener, MediaPlayer.OnSeekCompleteListener {
+        MediaPlayer.OnInfoListener, MediaPlayer.OnSeekCompleteListener, AudioManager.OnAudioFocusChangeListener {
 
     /**
      * Action's name prepended with this package name.
@@ -154,6 +156,16 @@ public class AudioMediaService extends Service
      * Flag if video autoplays.
      */
     private boolean autoplay;
+    private float volume;
+
+    public float getVolume() {
+        return volume;
+    }
+
+    public void setVolume(float volume) {
+        this.volume = volume;
+        mediaPlayer.setVolume(volume, volume);
+    }
 
     /**
      * Sets state of the media player.
@@ -258,6 +270,30 @@ public class AudioMediaService extends Service
         // broadcast seek complete intent
     }
 
+    @Override
+    public void onAudioFocusChange(int focusChange) {
+        switch (focusChange) {
+            case AudioManager.AUDIOFOCUS_GAIN:
+                setVolume(1.0f);
+                if (!mediaPlayer.isPlaying()) {
+                    start();
+                }
+                break;
+            case AudioManager.AUDIOFOCUS_LOSS:
+                if (mediaPlayer.isPlaying()) {
+                    stop();
+                }
+                release();
+                break;
+            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
+                pause();
+                break;
+            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
+                setVolume(0.1f);
+                break;
+        }
+    }
+
     /**
      * Sets state of the media player.
      *
@@ -277,6 +313,7 @@ public class AudioMediaService extends Service
     protected void reset(final boolean force) {
         if (!playerAtStates(MediaPlayerState.END, MediaPlayerState.ERROR)) {
             mediaPlayer.reset();
+            loseAudioFocus();
         } else if (force) {
             release();
             initMediaPlayer();
@@ -311,6 +348,7 @@ public class AudioMediaService extends Service
      */
     protected void release() {
         mediaPlayer.release();
+        loseAudioFocus();
         setPlayerState(MediaPlayerState.END);
     }
 
@@ -354,6 +392,7 @@ public class AudioMediaService extends Service
         if (playerAtStates(MediaPlayerState.PREPARED, MediaPlayerState.STARTED,
                 MediaPlayerState.PAUSED, MediaPlayerState.COMPLETE)) {
             mediaPlayer.start();
+            getAudioFocus();
             setPlayerState(MediaPlayerState.STARTED);
         }
     }
@@ -364,6 +403,7 @@ public class AudioMediaService extends Service
     protected void pause() {
         if (playerAtStates(MediaPlayerState.STARTED)) {
             mediaPlayer.pause();
+            loseAudioFocus();
             setPlayerState(MediaPlayerState.PAUSED);
         }
     }
@@ -375,7 +415,25 @@ public class AudioMediaService extends Service
         if (playerAtStates(MediaPlayerState.STARTED, MediaPlayerState.COMPLETE,
                 MediaPlayerState.STOPPED, MediaPlayerState.PREPARED, MediaPlayerState.PAUSED)) {
             mediaPlayer.stop();
+            loseAudioFocus();
             setPlayerState(MediaPlayerState.STOPPED);
+        }
+    }
+
+    private void loseAudioFocus() {
+
+        AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        audioManager.abandonAudioFocus(this);
+    }
+
+    private void getAudioFocus() {
+        AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        int result = audioManager.requestAudioFocus(this, AudioManager.STREAM_MUSIC,
+                AudioManager.AUDIOFOCUS_GAIN);
+
+        if (result != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+            // could not get audio focus.
+            Log.w(TAG, "Error requesting audio focus : " + result);
         }
     }
 
