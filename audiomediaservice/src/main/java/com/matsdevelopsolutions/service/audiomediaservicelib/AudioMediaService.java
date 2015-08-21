@@ -160,6 +160,7 @@ public class AudioMediaService extends Service
     private float volume;
     private WifiManager.WifiLock wifiStreamLock;
 
+
     public float getVolume() {
         return volume;
     }
@@ -186,6 +187,17 @@ public class AudioMediaService extends Service
         // todo: initialize only when notification is enabled - it does by default.
         notificationManager = new NotificationManager(this);
         intentBroadcaster = new IntentBroadcaster(this);
+
+    }
+
+    /**
+     * Prepares value for wifi stream lock.s
+     */
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        wifiStreamLock = ((WifiManager) getSystemService(Context.WIFI_SERVICE))
+                .createWifiLock(WifiManager.WIFI_MODE_FULL, "Audio Stream Lock");
     }
 
     @Override
