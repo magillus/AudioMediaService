@@ -1,4 +1,4 @@
-package com.matsdevelopsolutions.service.audiomediaservicelib;
+package com.matsdevelopsolutions.service.audiomediaservicelib.receiver;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -7,12 +7,29 @@ import android.content.IntentFilter;
 import android.support.annotation.IntRange;
 import android.util.Log;
 
+import com.matsdevelopsolutions.service.audiomediaservicelib.IntentBroadcaster;
+
 /**
- * Created by mateusz on 8/17/15.
+ * Broadcast receiver that process buffering progress messages.
  */
 public abstract class MediaBufferProgressBroadcastReceiver extends BroadcastReceiver {
 
+    /**
+     * Logging tag.
+     */
     private static final String TAG = MediaBufferProgressBroadcastReceiver.class.getSimpleName();
+
+
+    /**
+     * Registers {MediaBufferProgressBroadcastReceiver} with the context.
+     *
+     * @param context  Context.
+     * @param receiver receiver to be registered with context.
+     * @return register intent.
+     */
+    public static Intent register(Context context, MediaBufferProgressBroadcastReceiver receiver) {
+        return context.registerReceiver(receiver, getIntentFilter());
+    }
 
     /**
      * Returns intent filter for this broadcast reciever.

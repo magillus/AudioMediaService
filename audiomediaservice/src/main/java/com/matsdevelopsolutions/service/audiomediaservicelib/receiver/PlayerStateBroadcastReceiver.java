@@ -1,4 +1,4 @@
-package com.matsdevelopsolutions.service.audiomediaservicelib;
+package com.matsdevelopsolutions.service.audiomediaservicelib.receiver;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -6,13 +6,29 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.util.Log;
 
+import com.matsdevelopsolutions.service.audiomediaservicelib.IntentBroadcaster;
+import com.matsdevelopsolutions.service.audiomediaservicelib.MediaPlayerState;
+
 /**
- * Created by mateusz on 8/17/15.
+ * Broadcast receiver that receives media player state updates.
  */
 public abstract class PlayerStateBroadcastReceiver extends BroadcastReceiver {
 
+    /**
+     * Logging tag.
+     */
     public static final String TAG = PlayerStateBroadcastReceiver.class.getSimpleName();
 
+    /**
+     * Registers {PlayerStateBroadcastReceiver} with the context.
+     *
+     * @param context  Context.
+     * @param receiver receiver to be registered with context.
+     * @return register intent.
+     */
+    public static Intent register(Context context, PlayerStateBroadcastReceiver receiver) {
+        return context.registerReceiver(receiver, getIntentFilter());
+    }
 
     /**
      * Returns intent filter for this broadcast receiver.

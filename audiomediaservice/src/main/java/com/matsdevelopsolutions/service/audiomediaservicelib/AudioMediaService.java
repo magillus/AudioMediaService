@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.net.Uri;
+import android.net.wifi.WifiManager;
 import android.os.IBinder;
 import android.support.annotation.Nullable;
 import android.util.Log;
@@ -19,7 +20,7 @@ import java.io.IOException;
  */
 public class AudioMediaService extends Service
         implements MediaPlayer.OnCompletionListener, MediaPlayer.OnErrorListener,
-        MediaPlayer.OnInfoListener, MediaPlayer.OnSeekCompleteListener, AudioManager.OnAudioFocusChangeListener {
+        MediaPlayer.OnInfoListener, MediaPlayer.OnSeekCompleteListener, AudioManager.OnAudioFocusChangeListener, MediaPlayer.OnPreparedListener {
 
     /**
      * Action's name prepended with this package name.
@@ -157,6 +158,7 @@ public class AudioMediaService extends Service
      */
     private boolean autoplay;
     private float volume;
+    private WifiManager.WifiLock wifiStreamLock;
 
     public float getVolume() {
         return volume;
@@ -268,6 +270,7 @@ public class AudioMediaService extends Service
     public void onSeekComplete(MediaPlayer mp) {
         // no change on player state
         // broadcast seek complete intent
+        intentBroadcaster.currentPosition(mp.getCurrentPosition());
     }
 
     @Override
@@ -295,6 +298,21 @@ public class AudioMediaService extends Service
     }
 
     /**
+     * Callback from media player that data source is prepared.
+     *
+     * @param mp
+     */
+    @Override
+    public void onPrepared(MediaPlayer mp) {
+        if (playerAtStates(MediaPlayerState.PREPARING)) {
+            setPlayerState(MediaPlayerState.PREPARED);
+            if (autoplay) {
+                start();
+            }
+        }
+    }
+
+    /**
      * Sets state of the media player.
      *
      * @param state     state of media player
@@ -314,6 +332,7 @@ public class AudioMediaService extends Service
         if (!playerAtStates(MediaPlayerState.END, MediaPlayerState.ERROR)) {
             mediaPlayer.reset();
             loseAudioFocus();
+            releaseWifiLock();
         } else if (force) {
             release();
             initMediaPlayer();
@@ -349,6 +368,7 @@ public class AudioMediaService extends Service
     protected void release() {
         mediaPlayer.release();
         loseAudioFocus();
+        releaseWifiLock();
         setPlayerState(MediaPlayerState.END);
     }
 
@@ -357,15 +377,8 @@ public class AudioMediaService extends Service
      */
     protected void prepare() {
         if (playerAtStates(MediaPlayerState.INITIALIZED, MediaPlayerState.STOPPED)) {
-            try {
-                mediaPlayer.prepare();
-                setPlayerState(MediaPlayerState.PREPARED);
-                if (autoplay) {
-                    start();
-                }
-            } catch (IOException e) {
-                Log.w(TAG, "Prepare of data source is not possible.", e);
-            }
+            mediaPlayer.prepareAsync();
+            setPlayerState(MediaPlayerState.PREPARING);
         }
     }
 
@@ -393,6 +406,7 @@ public class AudioMediaService extends Service
                 MediaPlayerState.PAUSED, MediaPlayerState.COMPLETE)) {
             mediaPlayer.start();
             getAudioFocus();
+            acquireWifiLock();
             setPlayerState(MediaPlayerState.STARTED);
         }
     }
@@ -404,6 +418,7 @@ public class AudioMediaService extends Service
         if (playerAtStates(MediaPlayerState.STARTED)) {
             mediaPlayer.pause();
             loseAudioFocus();
+            releaseWifiLock();
             setPlayerState(MediaPlayerState.PAUSED);
         }
     }
@@ -416,7 +431,20 @@ public class AudioMediaService extends Service
                 MediaPlayerState.STOPPED, MediaPlayerState.PREPARED, MediaPlayerState.PAUSED)) {
             mediaPlayer.stop();
             loseAudioFocus();
+            releaseWifiLock();
             setPlayerState(MediaPlayerState.STOPPED);
+        }
+    }
+
+    private void acquireWifiLock() {
+        if (!wifiStreamLock.isHeld()) {
+            wifiStreamLock.acquire();
+        }
+    }
+
+    private void releaseWifiLock() {
+        if (wifiStreamLock != null && wifiStreamLock.isHeld()) {
+            wifiStreamLock.release();
         }
     }
 
@@ -453,6 +481,7 @@ public class AudioMediaService extends Service
             mediaInfo.description = description;
             mediaInfo.artUri = artUriString;
             notificationManager.updateMediaInfo(mediaInfo);
+            intentBroadcaster.mediaInfoChanged(mediaInfo);
         }
 
     }
@@ -541,6 +570,7 @@ public class AudioMediaService extends Service
         mediaPlayer.setOnErrorListener(this);
         mediaPlayer.setOnInfoListener(this);
         mediaPlayer.setOnSeekCompleteListener(this);
+        mediaPlayer.setOnPreparedListener(this);
         mediaPlayer.reset();
     }
 

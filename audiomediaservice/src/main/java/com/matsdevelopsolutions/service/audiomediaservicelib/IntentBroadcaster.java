@@ -23,19 +23,28 @@ public class IntentBroadcaster {
      */
     public static final String ACTION_MEDIA_INFO_CHANGE = IntentBroadcaster.class.getName() + ".ACTION_MEDIA_INFO_CHANGE";
 
+    /**
+     * Action for media current position change intent.
+     */
+    public static final String ACTION_CURRENT_POSITION_CHANGE = IntentBroadcaster.class.getName() + ".ACTION_CURRENT_POSITION_CHANGE";
 
     /**
      * Media info value = Intent extra argument.
      */
-    static final String MEDIA_INFO_ARG = "MEDIA_INFO_ARG";
+    public static final String MEDIA_INFO_ARG = "MEDIA_INFO_ARG";
     /**
      * Buffer progress value - Intent extra argument.
      */
-    static final String BUFFER_PROGRESS_ARG = "BUFFER_PROGRESS_ARG";
+    public static final String BUFFER_PROGRESS_ARG = "BUFFER_PROGRESS_ARG";
     /**
      * Media player status - Intent extra argument.
      */
-    static final String MEDIA_STATUS_ARG = "MEDIA_STATUS_ARG";
+    public static final String MEDIA_STATUS_ARG = "MEDIA_STATUS_ARG";
+    /**
+     * Media player current position - Intent extra argument.
+     */
+    public static final String CURRENT_POSITION_ARG = "CURRENT_POSITION_ARG";
+
     /**
      * Context.
      */
@@ -67,7 +76,9 @@ public class IntentBroadcaster {
      * @param bufferProgress
      */
     public void buffering(int bufferProgress) {
-
+        Intent intent = new Intent(ACTION_BUFFER_PROGRESS);
+        intent.putExtra(BUFFER_PROGRESS_ARG, bufferProgress);
+        context.sendBroadcast(intent);
     }
 
     /**
@@ -76,7 +87,19 @@ public class IntentBroadcaster {
      * @param mediaInfo
      */
     public void mediaInfoChanged(MediaInfo mediaInfo) {
-
+        Intent intent = new Intent(ACTION_MEDIA_INFO_CHANGE);
+        intent.putExtra(MEDIA_INFO_ARG, mediaInfo);
+        context.sendBroadcast(intent);
     }
 
+    /**
+     * Broadcasts media player position.
+     *
+     * @param currentPosition
+     */
+    public void currentPosition(int currentPosition) {
+        Intent intent = new Intent(ACTION_CURRENT_POSITION_CHANGE);
+        intent.putExtra(CURRENT_POSITION_ARG, currentPosition);
+        context.sendBroadcast(intent);
+    }
 }
