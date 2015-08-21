@@ -44,17 +44,17 @@ public class AudioMediaService extends Service
      */
     public static final String ACTION_PAUSE = PACKAGE_NAME + "AudioMediaService.PAUSE";
     /**
-     * Intent to stop playback and release media resources - it will also hide notification if showing.
+     * Intent action to stop playback and release media resources - it will also hide notification if showing.
      */
     public static final String ACTION_STOP = PACKAGE_NAME + "AudioMediaService.STOP";
     /**
-     * Intent to seek non-live stream to a given position
+     * Intent action to seek non-live stream to a given position
      * Required Extras:
      * <li>{SEEK_POSITION_ARG} - position in secons to media stream seek to</li>
      */
     public static final String ACTION_SEEK = PACKAGE_NAME + "AudioMediaService.SEEK_TO";
     /**
-     * Intent to update style of notification bar.
+     * Intent action to update style of notification bar.
      * Extras:
      * <li>{NOTIFICATION_STYLE_ARG} - style type for notification</li>
      * <li>{NOTIFICATION_BACKGROUND_ARG} - color of the background</li>
@@ -62,9 +62,13 @@ public class AudioMediaService extends Service
      */
     public static final String ACTION_NOTIFICATION_STYLE = PACKAGE_NAME + "AudioMediaService.NOTIFICATION_STYLE";
     /**
-     * Intent to play/pause toggle.
+     * Intent action to play/pause toggle.
      */
     public static final String ACTION_PLAY_TOGGLE = PACKAGE_NAME + "AudioMediaService.PLAY_TOGGLE";
+    /**
+     * Intent action to mute toggle.
+     */
+    public static final String ACTION_MUTE_TOGGLE = PACKAGE_NAME + "AudioMediaService.MUTE_TOGGLE";
     /**
      * Media source url extras name.
      */
@@ -125,11 +129,15 @@ public class AudioMediaService extends Service
      * Use pallette colors based on art's image - Notification configuration flag.
      */
     static final int FLAG_NOTIFICATION_PALLETE_BACKGROUND = 0b1000;
+    /**
+     * Default flags for notifications
+     */
     static final int DEFAULT_NOTIFICATION_FLAG = FLAG_NOTIFICATION_SHOW + FLAG_NOTIFICATION_SHOW_BUTTON_PLAY_TOGGLE + FLAG_NOTIFICATION_PALLETE_BACKGROUND;
     /**
      * Logging tag.
      */
     private static final String TAG = AudioMediaService.class.getSimpleName();
+
     /**
      * Media player instance.
      */

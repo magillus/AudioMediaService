@@ -1,11 +1,17 @@
 package com.matsdevelopsolutions.service.audioplayerserviceapp;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.view.Menu;
 import android.view.MenuItem;
 
+import com.matsdevelopsolutions.service.audiomediaservicelib.IntentGenerator;
+import com.matsdevelopsolutions.service.audiomediaservicelib.MediaInfo;
+
 public class MainPlayerActivity extends AppCompatActivity {
+
+    // add butterknife
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -33,5 +39,26 @@ public class MainPlayerActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main_player);
+    }
+
+    private void playStream(MediaInfo mediaInfo) {
+        Intent playIntent = IntentGenerator.createPlayIntent(mediaInfo);
+        startService(playIntent);
+    }
+
+    private void stop() {
+        startService(IntentGenerator.createStopIntent());
+    }
+
+    private void pause() {
+        startService(IntentGenerator.createPauseIntent());
+    }
+
+    private void toggleMute() {
+        startService(IntentGenerator.createToggleMuteIntent());
+    }
+
+    private void togglePlay() {
+        startService(IntentGenerator.createPlayToggleIntent());
     }
 }

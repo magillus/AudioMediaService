@@ -18,12 +18,13 @@ public final class IntentGenerator {
      * @return play intent
      */
     public static Intent createPlayIntent(final String url, final String title,
-                                          final String description, final boolean autoplay,
-                                          final int notificationFlag, final String notificationStyle) {
+                                          final String description, final String artUrl,
+                                          final boolean autoplay, final int notificationFlag, final String notificationStyle) {
         Intent intent = new Intent(AudioMediaService.ACTION_PLAY);
         intent.putExtra(AudioMediaService.SOURCE_URL_ARG, url);
         intent.putExtra(AudioMediaService.SOURCE_TITLE_ARG, title);
         intent.putExtra(AudioMediaService.SOURCE_DESC_ARG, description);
+        intent.putExtra(AudioMediaService.SOURCE_ART_URI_ARG, artUrl);
         intent.putExtra(AudioMediaService.AUTO_PLAY_ARG, autoplay);
         intent.putExtra(AudioMediaService.NOTIFICATION_CONFIG_FLAG_ARG, notificationFlag);
         intent.putExtra(AudioMediaService.NOTIFICATION_STYLE_ARG, notificationStyle);
@@ -51,6 +52,18 @@ public final class IntentGenerator {
      */
     public static Intent createPlayIntent() {
         return new Intent(AudioMediaService.ACTION_PLAY);
+    }
+
+    /**
+     * Creates default play intent for mediaInfo.
+     *
+     * @param mediaInfo
+     * @return
+     */
+    public static Intent createPlayIntent(MediaInfo mediaInfo) {
+        return createPlayIntent(mediaInfo.streamUrl, mediaInfo.title,
+                mediaInfo.description, mediaInfo.artUri, true,
+                AudioMediaService.DEFAULT_NOTIFICATION_FLAG, AudioMediaService.FLAG_NOTIFICATION_STYLE_NORMAL);
     }
 
     /**
@@ -90,5 +103,14 @@ public final class IntentGenerator {
         Intent intent = new Intent(AudioMediaService.ACTION_SEEK);
         intent.putExtra(AudioMediaService.SEEK_POSITION_ARG, position);
         return intent;
+    }
+
+    /**
+     * Creates media player mute toggle intent.s
+     *
+     * @return
+     */
+    public static Intent createToggleMuteIntent() {
+        return new Intent(AudioMediaService.ACTION_MUTE_TOGGLE);
     }
 }
