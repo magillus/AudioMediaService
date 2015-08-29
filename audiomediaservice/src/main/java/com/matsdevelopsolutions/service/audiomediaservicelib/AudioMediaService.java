@@ -7,6 +7,7 @@ import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.net.wifi.WifiManager;
+import android.os.Handler;
 import android.os.IBinder;
 import android.support.annotation.Nullable;
 import android.util.Log;
@@ -69,6 +70,14 @@ public class AudioMediaService extends Service
      * Intent action to mute toggle.
      */
     public static final String ACTION_MUTE_TOGGLE = PACKAGE_NAME + "AudioMediaService.MUTE_TOGGLE";
+    /**
+     * Intent action name to change volume.
+     */
+    public static final String ACTION_CHANGE_VOLUME = PACKAGE_NAME + "AudioMediaService.CHANGE_VOLUME";
+    /**
+     * Media player volume argument.
+     */
+    public static final String VOLUME_VALUE_ARG = "VOLUME_VALUE_ARG";
     /**
      * Media source url extras name.
      */
@@ -139,6 +148,23 @@ public class AudioMediaService extends Service
     private static final String TAG = AudioMediaService.class.getSimpleName();
 
     /**
+     * Default position update timespan.
+     */
+    private static final int POSITION_UPDATE_TIMESPAN_DEFAULT = 500; //ms
+    private static final float VOLUME_MUTED = 0f;
+    private final Runnable positionUpdate = new Runnable() {
+        @Override
+        public void run() {
+            if (intentBroadcaster != null && mediaPlayer != null
+                    && playerAtStates(MediaPlayerState.PAUSED, MediaPlayerState.STARTED, MediaPlayerState.STOPPED)) {
+                intentBroadcaster.currentPosition(mediaPlayer.getCurrentPosition());
+                if (isPositionUpdateActive) {
+                    updatePositionBroadcast();
+                }
+            }
+        }
+    };
+    /**
      * Media player instance.
      */
     private MediaPlayer mediaPlayer;
@@ -146,7 +172,6 @@ public class AudioMediaService extends Service
      * Media player state
      */
     private MediaPlayerState playerState;
-
     /**
      * Notification manager instance.
      */
@@ -155,27 +180,46 @@ public class AudioMediaService extends Service
      * Intent updates Broadcaster
      */
     private IntentBroadcaster intentBroadcaster;
-
     /**
      * Currently playing media info.
      */
     private MediaInfo mediaInfo;
-
     /**
      * Flag if video autoplays.
      */
     private boolean autoplay;
     private float volume;
     private WifiManager.WifiLock wifiStreamLock;
+    private int positionUpdateTimespan = POSITION_UPDATE_TIMESPAN_DEFAULT;
+    private Handler updatesHandler;
+    private volatile boolean isPositionUpdateActive = false;
+    private float previousVolume = 0f;
 
-
+    /**
+     * Gets volume value
+     *
+     * @return
+     */
     public float getVolume() {
         return volume;
     }
 
+    /**
+     * Sets audio volume
+     *
+     * @param volume
+     */
     public void setVolume(float volume) {
-        this.volume = volume;
-        mediaPlayer.setVolume(volume, volume);
+        try {
+            if (volume == this.volume) {
+                return;
+            }
+            this.previousVolume = this.volume;
+            this.volume = volume;
+            mediaPlayer.setVolume(volume, volume);
+        } finally {
+            intentBroadcaster.volume(getVolume());
+        }
     }
 
     /**
@@ -204,6 +248,7 @@ public class AudioMediaService extends Service
     @Override
     public void onCreate() {
         super.onCreate();
+        updatesHandler = new Handler();
         wifiStreamLock = ((WifiManager) getSystemService(Context.WIFI_SERVICE))
                 .createWifiLock(WifiManager.WIFI_MODE_FULL, "Audio Stream Lock");
     }
@@ -259,6 +304,13 @@ public class AudioMediaService extends Service
                 int flag = fetchIntParameter(intent, NOTIFICATION_CONFIG_FLAG_ARG, DEFAULT_NOTIFICATION_FLAG);
                 updateMediaInfoFromIntent(intent);
                 notificationManager.updateStyle(style, flag, mediaInfo);
+                break;
+            case ACTION_MUTE_TOGGLE:
+                toggleVolume();
+                break;
+            case ACTION_CHANGE_VOLUME:
+                float newVolume = fetchFloatParameter(intent, VOLUME_VALUE_ARG, getVolume());
+                setVolume(newVolume);
             default:
                 return START_CONTINUATION_MASK;
 
@@ -277,7 +329,9 @@ public class AudioMediaService extends Service
         // report error
         // broadcast error from player
         setPlayerState(MediaPlayerState.ERROR);
-
+        releaseWifiLock();
+        loseAudioFocus();
+        stopPositionUpdateBroadcast();
         return true;
     }
 
@@ -353,6 +407,7 @@ public class AudioMediaService extends Service
             mediaPlayer.reset();
             loseAudioFocus();
             releaseWifiLock();
+            stopPositionUpdateBroadcast();
         } else if (force) {
             release();
             initMediaPlayer();
@@ -390,6 +445,7 @@ public class AudioMediaService extends Service
         loseAudioFocus();
         releaseWifiLock();
         setPlayerState(MediaPlayerState.END);
+        stopPositionUpdateBroadcast();
     }
 
     /**
@@ -428,6 +484,7 @@ public class AudioMediaService extends Service
             getAudioFocus();
             acquireWifiLock();
             setPlayerState(MediaPlayerState.STARTED);
+            updatePositionBroadcast();
         }
     }
 
@@ -440,6 +497,7 @@ public class AudioMediaService extends Service
             loseAudioFocus();
             releaseWifiLock();
             setPlayerState(MediaPlayerState.PAUSED);
+            stopPositionUpdateBroadcast();
         }
     }
 
@@ -453,7 +511,24 @@ public class AudioMediaService extends Service
             loseAudioFocus();
             releaseWifiLock();
             setPlayerState(MediaPlayerState.STOPPED);
+            stopPositionUpdateBroadcast();
         }
+    }
+
+    private void toggleVolume() {
+        if (previousVolume != VOLUME_MUTED) {
+            setVolume(VOLUME_MUTED);
+        } else {
+            setVolume(previousVolume);
+        }
+    }
+
+    private void stopPositionUpdateBroadcast() {
+        isPositionUpdateActive = false;
+    }
+
+    private void updatePositionBroadcast() {
+        updatesHandler.postDelayed(positionUpdate, positionUpdateTimespan);
     }
 
     private void acquireWifiLock() {
@@ -469,7 +544,6 @@ public class AudioMediaService extends Service
     }
 
     private void loseAudioFocus() {
-
         AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         audioManager.abandonAudioFocus(this);
     }
@@ -485,6 +559,11 @@ public class AudioMediaService extends Service
         }
     }
 
+    /**
+     * Updates media information if changed on notification.
+     *
+     * @param intent
+     */
     private void updateMediaInfoFromIntent(Intent intent) {
         String title = fetchStringParameter(intent, SOURCE_TITLE_ARG);
         String description = fetchStringParameter(intent, SOURCE_DESC_ARG);
@@ -513,6 +592,22 @@ public class AudioMediaService extends Service
             return !valueA.equals(valueB);
         }
         return true;
+    }
+
+
+    /**
+     * Fetches float argument from intent extras if exists.
+     *
+     * @param intent       intent
+     * @param argName      argument name
+     * @param defaultValue default Value
+     * @return returns value or default if doesn't exists
+     */
+    private float fetchFloatParameter(Intent intent, String argName, float defaultValue) {
+        if (intent.hasExtra(argName)) {
+            return intent.getFloatExtra(argName, defaultValue);
+        }
+        return defaultValue;
     }
 
     /**
@@ -592,6 +687,8 @@ public class AudioMediaService extends Service
         mediaPlayer.setOnSeekCompleteListener(this);
         mediaPlayer.setOnPreparedListener(this);
         mediaPlayer.reset();
+        AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        previousVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
     }
 
     /**

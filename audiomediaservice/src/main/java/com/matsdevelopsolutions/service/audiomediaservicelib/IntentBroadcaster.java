@@ -2,6 +2,7 @@ package com.matsdevelopsolutions.service.audiomediaservicelib;
 
 import android.content.Context;
 import android.content.Intent;
+import android.support.annotation.FloatRange;
 
 /**
  * Broadcasts intents for an defined actions
@@ -27,6 +28,11 @@ public class IntentBroadcaster {
      * Action for media current position change intent.
      */
     public static final String ACTION_CURRENT_POSITION_CHANGE = IntentBroadcaster.class.getName() + ".ACTION_CURRENT_POSITION_CHANGE";
+
+    /**
+     * Action for volume change intent.
+     */
+    public static final String ACTION_VOLUME_CHANGE = "ACTION_VOLUME_CHANGE";
 
     /**
      * Media info value = Intent extra argument.
@@ -100,6 +106,17 @@ public class IntentBroadcaster {
     public void currentPosition(int currentPosition) {
         Intent intent = new Intent(ACTION_CURRENT_POSITION_CHANGE);
         intent.putExtra(CURRENT_POSITION_ARG, currentPosition);
+        context.sendBroadcast(intent);
+    }
+
+    /**
+     * Broadcasts volume value.
+     *
+     * @param volume
+     */
+    public void volume(@FloatRange(from = 0f, to = 1.0) float volume) {
+        Intent intent = new Intent(ACTION_VOLUME_CHANGE);
+        intent.putExtra(AudioMediaService.VOLUME_VALUE_ARG, volume);
         context.sendBroadcast(intent);
     }
 }

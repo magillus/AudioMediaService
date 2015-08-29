@@ -1,6 +1,7 @@
 package com.matsdevelopsolutions.service.audiomediaservicelib;
 
 import android.content.Intent;
+import android.support.annotation.FloatRange;
 
 /**
  * Helper class that creates intents for {AudioMediaService}.
@@ -113,4 +114,17 @@ public final class IntentGenerator {
     public static Intent createToggleMuteIntent() {
         return new Intent(AudioMediaService.ACTION_MUTE_TOGGLE);
     }
+
+    /**
+     * Creates change volume intent.
+     *
+     * @param volume volume value from 0 to 1.0
+     * @return volume change intent
+     */
+    public static Intent createChangeVolumeIntent(@FloatRange(from = 0, to = 1f) final float volume) {
+        Intent intent = new Intent(AudioMediaService.ACTION_CHANGE_VOLUME);
+        intent.putExtra(AudioMediaService.VOLUME_VALUE_ARG, volume);
+        return intent;
+    }
+
 }
