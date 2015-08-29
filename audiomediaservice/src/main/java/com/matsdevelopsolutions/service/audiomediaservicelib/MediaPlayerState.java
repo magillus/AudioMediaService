@@ -41,7 +41,7 @@ public enum MediaPlayerState {
      */
     ERROR,
     /**
-     * Media plyer is released and cannot be used again.
+     * Media player is released and cannot be used again.
      */
     END
 }

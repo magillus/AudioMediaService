@@ -15,7 +15,7 @@ public final class IntentGenerator {
      * @param title            media title (required)
      * @param description      media short description
      * @param autoplay         true if autoplay is on
-     * @param notificationFlag notofication flag.
+     * @param notificationFlag notification flag.
      * @return play intent
      */
     public static Intent createPlayIntent(final String url, final String title,
@@ -36,7 +36,7 @@ public final class IntentGenerator {
      * Creates notification update intent
      *
      * @param notificationStyle notification style, value of: todo
-     * @param notificationFlag  notification configuraiton flag
+     * @param notificationFlag  notification configuration flag
      * @return notification update intent.
      */
     public static Intent createNotificationUpdateIntent(final String notificationStyle, final int notificationFlag) {

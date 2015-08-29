@@ -51,7 +51,7 @@ public class AudioMediaService extends Service
     /**
      * Intent action to seek non-live stream to a given position
      * Required Extras:
-     * <li>{SEEK_POSITION_ARG} - position in secons to media stream seek to</li>
+     * <li>{SEEK_POSITION_ARG} - position in seconds to media stream seek to</li>
      */
     public static final String ACTION_SEEK = PACKAGE_NAME + "AudioMediaService.SEEK_TO";
     /**
@@ -135,13 +135,13 @@ public class AudioMediaService extends Service
      */
     static final int FLAG_NOTIFICATION_SHOW_BUTTON_STOP = 0b100;
     /**
-     * Use pallette colors based on art's image - Notification configuration flag.
+     * Use palette colors based on art's image - Notification configuration flag.
      */
-    static final int FLAG_NOTIFICATION_PALLETE_BACKGROUND = 0b1000;
+    static final int FLAG_NOTIFICATION_PALETTE_BACKGROUND = 0b1000;
     /**
      * Default flags for notifications
      */
-    static final int DEFAULT_NOTIFICATION_FLAG = FLAG_NOTIFICATION_SHOW + FLAG_NOTIFICATION_SHOW_BUTTON_PLAY_TOGGLE + FLAG_NOTIFICATION_PALLETE_BACKGROUND;
+    static final int DEFAULT_NOTIFICATION_FLAG = FLAG_NOTIFICATION_SHOW + FLAG_NOTIFICATION_SHOW_BUTTON_PLAY_TOGGLE + FLAG_NOTIFICATION_PALETTE_BACKGROUND;
     /**
      * Logging tag.
      */
@@ -190,7 +190,6 @@ public class AudioMediaService extends Service
     private boolean autoplay;
     private float volume;
     private WifiManager.WifiLock wifiStreamLock;
-    private int positionUpdateTimespan = POSITION_UPDATE_TIMESPAN_DEFAULT;
     private Handler updatesHandler;
     private volatile boolean isPositionUpdateActive = false;
     private float previousVolume = 0f;
@@ -269,17 +268,24 @@ public class AudioMediaService extends Service
                 // parse arguments and optionals
                 String newUrl = fetchStringParameter(intent, SOURCE_URL_ARG);
                 updateMediaInfoFromIntent(intent);
-                if (newUrl.equalsIgnoreCase(mediaInfo.streamUrl)) {
-                    // same stream - just start
-                    start();
+                if (newUrl != null) {
+                    if (newUrl.equalsIgnoreCase(mediaInfo.streamUrl)) {
+                        // same stream - just start
+                        start();
+                    } else {
+                        // enable autoplay and load
+                        autoplay = fetchBooleanParameter(intent, AUTO_PLAY_ARG, true);
+                        setDataSource(mediaInfo.streamUrl, true);
+                        // check for notification details in intent
+                        String style = fetchStringParameter(intent, NOTIFICATION_STYLE_ARG, notificationManager.getCurrentStyle());
+                        int flag = fetchIntParameter(intent, NOTIFICATION_CONFIG_FLAG_ARG, notificationManager.getCurrentFlags());
+                        notificationManager.updateStyle(style, flag, mediaInfo);
+                    }
                 } else {
-                    // enable autoplay and load
-                    autoplay = fetchBooleanParameter(intent, AUTO_PLAY_ARG, true);
-                    setDataSource(mediaInfo.streamUrl, true);
-                    // check for notification details in intent
-                    String style = fetchStringParameter(intent, NOTIFICATION_STYLE_ARG, notificationManager.getCurrentStyle());
-                    int flag = fetchIntParameter(intent, NOTIFICATION_CONFIG_FLAG_ARG, notificationManager.getCurrentFlags());
-                    notificationManager.updateStyle(style, flag, mediaInfo);
+                    Log.w(TAG, "playback url is empty");
+                    if (mediaInfo != null && mediaInfo.streamUrl != null) {
+                        start();
+                    }
                 }
                 break;
             case ACTION_PLAY_TOGGLE:
@@ -528,6 +534,7 @@ public class AudioMediaService extends Service
     }
 
     private void updatePositionBroadcast() {
+        int positionUpdateTimespan = POSITION_UPDATE_TIMESPAN_DEFAULT;
         updatesHandler.postDelayed(positionUpdate, positionUpdateTimespan);
     }
 
@@ -569,8 +576,7 @@ public class AudioMediaService extends Service
         String description = fetchStringParameter(intent, SOURCE_DESC_ARG);
         String artUriString = fetchStringParameter(intent, SOURCE_ART_URI_ARG);
         String newUrl = fetchStringParameter(intent, SOURCE_URL_ARG);
-        boolean changes = false;
-        changes |= hasValueChanged(newUrl, mediaInfo.streamUrl);
+        boolean changes = hasValueChanged(newUrl, mediaInfo.streamUrl);
         changes |= hasValueChanged(title, mediaInfo.title);
         changes |= hasValueChanged(description, mediaInfo.description);
         changes |= hasValueChanged(artUriString, mediaInfo.artUri);

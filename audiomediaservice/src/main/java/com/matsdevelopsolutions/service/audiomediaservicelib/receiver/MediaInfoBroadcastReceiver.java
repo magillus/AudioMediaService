@@ -11,7 +11,7 @@ import com.matsdevelopsolutions.service.audiomediaservicelib.IntentBroadcaster;
 import com.matsdevelopsolutions.service.audiomediaservicelib.MediaInfo;
 
 /**
- * Broadcast reciever that receives media info updates.
+ * Broadcast receiver that receives media info updates.
  */
 public abstract class MediaInfoBroadcastReceiver extends BroadcastReceiver {
 
@@ -33,7 +33,7 @@ public abstract class MediaInfoBroadcastReceiver extends BroadcastReceiver {
     }
 
     /**
-     * Returns intent filter for this broadcast reciever.
+     * Returns intent filter for this broadcast receiver.
      *
      * @return
      */
@@ -42,7 +42,7 @@ public abstract class MediaInfoBroadcastReceiver extends BroadcastReceiver {
     }
 
     /**
-     * Called on recieved intent.
+     * Called on received intent.
      *
      * @param context context
      * @param intent  received intent

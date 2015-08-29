@@ -32,7 +32,7 @@ public abstract class MediaBufferProgressBroadcastReceiver extends BroadcastRece
     }
 
     /**
-     * Returns intent filter for this broadcast reciever.
+     * Returns intent filter for this broadcast receiver.
      *
      * @return
      */
