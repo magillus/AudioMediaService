@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/AudioMediaService.iml" filepath="$PROJECT_DIR$/AudioMediaService.iml" />
+      <module fileurl="file://$PROJECT_DIR$/AudioPlayerService.iml" filepath="$PROJECT_DIR$/AudioPlayerService.iml" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
       <module fileurl="file://$PROJECT_DIR$/audiomediaservice/audiomediaservice.iml" filepath="$PROJECT_DIR$/audiomediaservice/audiomediaservice.iml" />
     </modules>

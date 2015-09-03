@@ -1,11 +1,9 @@
-/audiomediaservice/audiomediaservice.iml
+.iml
 .gradle
 /local.properties
-/.idea/workspace.xml
-/.idea/libraries
+/.idea
 .DS_Store
 /build
 /captures
 *.iml
-/.idea
-/.gradle
+/.navigation/
