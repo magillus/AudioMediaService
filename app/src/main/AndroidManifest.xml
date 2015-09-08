@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest
-    package="com.matsdevelopsolutions.service.audioplayerserviceapp"
-    xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.matsdevelopsolutions.service.audioplayerserviceapp">
+
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:allowBackup="true"
@@ -17,6 +18,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <service
+            android:name="com.matsdevelopsolutions.service.audiomediaservicelib.AudioMediaService"
+            android:enabled="true"
+            android:exported="true"></service>
     </application>
 
 </manifest>

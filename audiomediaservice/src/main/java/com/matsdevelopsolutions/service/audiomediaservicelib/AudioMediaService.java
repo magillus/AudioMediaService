@@ -5,14 +5,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
-import android.net.Uri;
 import android.net.wifi.WifiManager;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.PowerManager;
 import android.support.annotation.Nullable;
 import android.util.Log;
-
-import java.io.IOException;
 
 /**
  * Audio service that keep instance of MediaPlayer to play a audio stream.
@@ -152,18 +150,6 @@ public class AudioMediaService extends Service
      */
     private static final int POSITION_UPDATE_TIMESPAN_DEFAULT = 500; //ms
     private static final float VOLUME_MUTED = 0f;
-    private final Runnable positionUpdate = new Runnable() {
-        @Override
-        public void run() {
-            if (intentBroadcaster != null && mediaPlayer != null
-                    && playerAtStates(MediaPlayerState.PAUSED, MediaPlayerState.STARTED, MediaPlayerState.STOPPED)) {
-                intentBroadcaster.currentPosition(mediaPlayer.getCurrentPosition());
-                if (isPositionUpdateActive) {
-                    updatePositionBroadcast();
-                }
-            }
-        }
-    };
     /**
      * Media player instance.
      */
@@ -192,7 +178,25 @@ public class AudioMediaService extends Service
     private WifiManager.WifiLock wifiStreamLock;
     private Handler updatesHandler;
     private volatile boolean isPositionUpdateActive = false;
+    private final Runnable positionUpdate = new Runnable() {
+        @Override
+        public void run() {
+            if (intentBroadcaster != null && mediaPlayer != null
+                    && playerAtStates(MediaPlayerState.PAUSED, MediaPlayerState.STARTED, MediaPlayerState.STOPPED)) {
+                intentBroadcaster.currentPosition(mediaPlayer.getCurrentPosition());
+                if (isPositionUpdateActive) {
+                    updatePositionBroadcast();
+                }
+            }
+        }
+    };
     private float previousVolume = 0f;
+
+    /**
+     * Creates instance of {AudioMediaService}.
+     */
+    public AudioMediaService() {
+    }
 
     /**
      * Gets volume value
@@ -231,22 +235,17 @@ public class AudioMediaService extends Service
     }
 
     /**
-     * Creates instance of {AudioMediaService}.
-     */
-    public AudioMediaService() {
-        initMediaPlayer();
-        // todo: initialize only when notification is enabled - it does by default.
-        notificationManager = new NotificationManager(this);
-        intentBroadcaster = new IntentBroadcaster(this);
-
-    }
-
-    /**
      * Prepares value for wifi stream lock.s
      */
     @Override
     public void onCreate() {
         super.onCreate();
+
+        initMediaPlayer();
+        // todo: initialize only when notification is enabled - it does by default.
+        notificationManager = new NotificationManager(this);
+        intentBroadcaster = new IntentBroadcaster(this);
+
         updatesHandler = new Handler();
         wifiStreamLock = ((WifiManager) getSystemService(Context.WIFI_SERVICE))
                 .createWifiLock(WifiManager.WIFI_MODE_FULL, "Audio Stream Lock");
@@ -259,6 +258,9 @@ public class AudioMediaService extends Service
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        if (intent == null) {
+            return super.onStartCommand(intent, flags, startId);
+        }
         String action = intent.getAction();
         if (action == null) {
             return super.onStartCommand(intent, flags, startId);
@@ -267,15 +269,17 @@ public class AudioMediaService extends Service
             case ACTION_PLAY:
                 // parse arguments and optionals
                 String newUrl = fetchStringParameter(intent, SOURCE_URL_ARG);
+                boolean loadAndPlay = !(mediaInfo == null || !newUrl.equalsIgnoreCase(mediaInfo.streamUrl));
                 updateMediaInfoFromIntent(intent);
                 if (newUrl != null) {
-                    if (newUrl.equalsIgnoreCase(mediaInfo.streamUrl)) {
+                    if (loadAndPlay) {
                         // same stream - just start
-                        start();
+                        start();// force start or load data again
                     } else {
                         // enable autoplay and load
                         autoplay = fetchBooleanParameter(intent, AUTO_PLAY_ARG, true);
                         setDataSource(mediaInfo.streamUrl, true);
+                        prepare();
                         // check for notification details in intent
                         String style = fetchStringParameter(intent, NOTIFICATION_STYLE_ARG, notificationManager.getCurrentStyle());
                         int flag = fetchIntParameter(intent, NOTIFICATION_CONFIG_FLAG_ARG, notificationManager.getCurrentFlags());
@@ -429,9 +433,11 @@ public class AudioMediaService extends Service
     protected void setDataSource(final String url, final boolean force) {
         if (playerAtStates(MediaPlayerState.IDLE)) {
             try {
-                mediaPlayer.setDataSource(this, Uri.parse(url));
-            } catch (IOException e) {
+                mediaPlayer.setDataSource(url);
+                setPlayerState(MediaPlayerState.INITIALIZED);
+            } catch (Exception e) {
                 Log.w(TAG, String.format("Error setting data source, url = %s", url), e);
+                setPlayerState(MediaPlayerState.ERROR);
             }
         } else if (force) {
             reset(true);
@@ -439,7 +445,6 @@ public class AudioMediaService extends Service
             if (autoplay) {
                 prepare();
             }
-            setPlayerState(MediaPlayerState.INITIALIZED);
         }
     }
 
@@ -576,10 +581,17 @@ public class AudioMediaService extends Service
         String description = fetchStringParameter(intent, SOURCE_DESC_ARG);
         String artUriString = fetchStringParameter(intent, SOURCE_ART_URI_ARG);
         String newUrl = fetchStringParameter(intent, SOURCE_URL_ARG);
-        boolean changes = hasValueChanged(newUrl, mediaInfo.streamUrl);
-        changes |= hasValueChanged(title, mediaInfo.title);
-        changes |= hasValueChanged(description, mediaInfo.description);
-        changes |= hasValueChanged(artUriString, mediaInfo.artUri);
+
+        boolean changes = false;
+        if (mediaInfo == null) {
+            mediaInfo = new MediaInfo();
+            changes = true;
+        } else {
+            hasValueChanged(newUrl, mediaInfo.streamUrl);
+            changes |= hasValueChanged(title, mediaInfo.title);
+            changes |= hasValueChanged(description, mediaInfo.description);
+            changes |= hasValueChanged(artUriString, mediaInfo.artUri);
+        }
         if (changes) {
             mediaInfo.streamUrl = newUrl;
             mediaInfo.title = title;
@@ -692,9 +704,11 @@ public class AudioMediaService extends Service
         mediaPlayer.setOnInfoListener(this);
         mediaPlayer.setOnSeekCompleteListener(this);
         mediaPlayer.setOnPreparedListener(this);
-        mediaPlayer.reset();
+        mediaPlayer.setWakeMode(getApplicationContext(), PowerManager.PARTIAL_WAKE_LOCK);
+        playerState = MediaPlayerState.IDLE;
         AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         previousVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+
     }
 
     /**
