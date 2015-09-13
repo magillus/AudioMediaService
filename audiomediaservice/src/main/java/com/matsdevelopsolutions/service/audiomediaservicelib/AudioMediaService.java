@@ -360,6 +360,7 @@ public class AudioMediaService extends Service
     @Override
     public void onCompletion(MediaPlayer mp) {
         setPlayerState(MediaPlayerState.COMPLETE);
+        delayStop();
     }
 
     @Override
