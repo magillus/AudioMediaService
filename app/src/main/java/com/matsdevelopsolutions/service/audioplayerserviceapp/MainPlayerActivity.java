@@ -86,7 +86,7 @@ public class MainPlayerActivity extends AppCompatActivity {
         MediaInfo mediaInfo = new MediaInfo();
         mediaInfo.artUri = "https://pmcdeadline2.files.wordpress.com/2014/08/bbc-logo.jpg?w=970";
         mediaInfo.streamUrl = path;
-        mediaInfo.description = "BBC radio";
+        mediaInfo.description = title;
         mediaInfo.title = title;
         playStream(mediaInfo);
     }
@@ -129,6 +129,7 @@ public class MainPlayerActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main_player);
         ButterKnife.bind(this);
 
+        // todo rework for cursor loaders
         String[] cols = new String[]{MediaStore.Audio.Media._ID, MediaStore.Audio.Media.DATA,
                 MediaStore.Audio.Media.DISPLAY_NAME, MediaStore.Audio.Media.TITLE};
         final Cursor c = getContentResolver().query(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
@@ -139,24 +140,6 @@ public class MainPlayerActivity extends AppCompatActivity {
         final SimpleCursorAdapter cursorAdapter = new SimpleCursorAdapter(this, R.layout.audio_item,
                 c, new String[]{MediaStore.Audio.Media.DISPLAY_NAME}, new int[]{R.id.audio_item_title});
 
-//
-//        String[] files = new String[0];
-//        try {
-//            files = getResources().getAssets().list("audio");
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
-//        final List<Map<String, String>> data = new ArrayList<>();
-//        for (String filePath : files) {
-//            Map<String, String> map = new HashMap<>();
-//            File file = new File("audio/" + filePath);
-//            map.put("PATH", "audio/" + filePath);
-//            map.put("NAME", file.getName());
-//            data.add(map);
-//        }
-//
-//        SpinnerAdapter adapter = new SimpleAdapter(this, data, R.layout.audio_item,
-//                new String[]{"NAME"}, new int[]{R.id.audio_item_title});
         sourceSpinner.setAdapter(cursorAdapter);
 
         sourceSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
@@ -167,7 +150,7 @@ public class MainPlayerActivity extends AppCompatActivity {
                 String url = c.getString(c.getColumnIndex(MediaStore.Audio.Media.DATA));
                 String title = c.getString(c.getColumnIndex(MediaStore.Audio.Media.TITLE));
                 startPlayback(url, title);
-                //startPlayback(data.get(position).get("PATH"));
+
             }
 
             @Override
