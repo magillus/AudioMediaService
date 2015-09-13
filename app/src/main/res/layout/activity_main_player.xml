@@ -9,8 +9,8 @@
               android:paddingTop="@dimen/activity_vertical_margin"
               tools:context=".MainPlayerActivity">
 
-    <Button
-        android:id="@+id/button_start"
+    <android.support.v7.widget.AppCompatSpinner
+        android:id="@+id/source_spinner"
         android:layout_width="match_parent"
         android:layout_height="wrap_content" />
     <LinearLayout
@@ -24,6 +24,23 @@
 
         <TextView
             android:id="@+id/stream_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            tools:text="NAME of stream"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Status:"/>
+
+        <TextView
+            android:id="@+id/media_status"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_weight="1"

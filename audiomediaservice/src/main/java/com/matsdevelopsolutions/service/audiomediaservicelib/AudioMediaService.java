@@ -5,12 +5,15 @@ import android.content.Context;
 import android.content.Intent;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
+import android.net.Uri;
 import android.net.wifi.WifiManager;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.PowerManager;
 import android.support.annotation.Nullable;
 import android.util.Log;
+
+import java.io.File;
 
 /**
  * Audio service that keep instance of MediaPlayer to play a audio stream.
@@ -150,6 +153,29 @@ public class AudioMediaService extends Service
      */
     private static final int POSITION_UPDATE_TIMESPAN_DEFAULT = 500; //ms
     private static final float VOLUME_MUTED = 0f;
+    private static final long STOP_DELAY_TIMER = 60 * 1000;
+    private final Runnable positionUpdate = new Runnable() {
+        @Override
+        public void run() {
+            if (intentBroadcaster != null && mediaPlayer != null
+                    && playerAtStates(MediaPlayerState.PAUSED, MediaPlayerState.STARTED, MediaPlayerState.STOPPED)) {
+                int currentPosition = mediaPlayer.getCurrentPosition();
+                Log.v(TAG, String.format("Media position change : %s", currentPosition));
+                intentBroadcaster.currentPosition(currentPosition);
+                if (isPositionUpdateActive) {
+                    updatePositionBroadcast();
+                }
+            }
+        }
+    };
+
+    private final Runnable stopService = new Runnable() {
+        @Override
+        public void run() {
+            Log.d(TAG, "After stop timeout closing AudioMediaService.");
+            stopSelf();
+        }
+    };
     /**
      * Media player instance.
      */
@@ -161,7 +187,7 @@ public class AudioMediaService extends Service
     /**
      * Notification manager instance.
      */
-    private NotificationManager notificationManager;
+    private NotificationHelper notificationManager;
     /**
      * Intent updates Broadcaster
      */
@@ -178,25 +204,7 @@ public class AudioMediaService extends Service
     private WifiManager.WifiLock wifiStreamLock;
     private Handler updatesHandler;
     private volatile boolean isPositionUpdateActive = false;
-    private final Runnable positionUpdate = new Runnable() {
-        @Override
-        public void run() {
-            if (intentBroadcaster != null && mediaPlayer != null
-                    && playerAtStates(MediaPlayerState.PAUSED, MediaPlayerState.STARTED, MediaPlayerState.STOPPED)) {
-                intentBroadcaster.currentPosition(mediaPlayer.getCurrentPosition());
-                if (isPositionUpdateActive) {
-                    updatePositionBroadcast();
-                }
-            }
-        }
-    };
     private float previousVolume = 0f;
-
-    /**
-     * Creates instance of {AudioMediaService}.
-     */
-    public AudioMediaService() {
-    }
 
     /**
      * Gets volume value
@@ -218,6 +226,7 @@ public class AudioMediaService extends Service
                 return;
             }
             this.previousVolume = this.volume;
+            Log.v(TAG, String.format("Volume change from %f to %f", this.previousVolume, volume));
             this.volume = volume;
             mediaPlayer.setVolume(volume, volume);
         } finally {
@@ -230,8 +239,14 @@ public class AudioMediaService extends Service
      *
      * @param state state of media player
      */
-    protected void setPlayerState(MediaPlayerState state) {
+    protected synchronized void setPlayerState(MediaPlayerState state) {
         setPlayerState(state, true);
+    }
+
+    /**
+     * Creates instance of {AudioMediaService}.
+     */
+    public AudioMediaService() {
     }
 
     /**
@@ -243,12 +258,19 @@ public class AudioMediaService extends Service
 
         initMediaPlayer();
         // todo: initialize only when notification is enabled - it does by default.
-        notificationManager = new NotificationManager(this);
+        notificationManager = new NotificationHelper(this);
         intentBroadcaster = new IntentBroadcaster(this);
 
         updatesHandler = new Handler();
         wifiStreamLock = ((WifiManager) getSystemService(Context.WIFI_SERVICE))
                 .createWifiLock(WifiManager.WIFI_MODE_FULL, "Audio Stream Lock");
+    }
+
+    @Override
+    public void onTaskRemoved(Intent rootIntent) {
+        Log.i(TAG, "Closing Audio Media Service.");
+        release();
+        notificationManager.clear();
     }
 
     @Override
@@ -265,6 +287,7 @@ public class AudioMediaService extends Service
         if (action == null) {
             return super.onStartCommand(intent, flags, startId);
         }
+        Log.d(TAG, String.format("onStartCommand, action = %s", action));
         switch (action) {
             case ACTION_PLAY:
                 // parse arguments and optionals
@@ -295,6 +318,9 @@ public class AudioMediaService extends Service
             case ACTION_PLAY_TOGGLE:
                 if (playerState == MediaPlayerState.STARTED) {
                     pause();
+                } else if (playerState == MediaPlayerState.STOPPED) {
+                    autoplay = true;
+                    prepare();
                 } else {
                     start();
                 }
@@ -403,17 +429,20 @@ public class AudioMediaService extends Service
      * @param broadcast if true, the state change is broadcasted with intent.
      */
     protected void setPlayerState(MediaPlayerState state, boolean broadcast) {
+        Log.d(TAG, String.format("Player state change from %s to %s", this.playerState.toString(), state.toString()));
         this.playerState = state;
         if (broadcast) {
             intentBroadcaster.stateChange(state);
         }
+        notificationManager.updateNotification(state);
     }
 
     /**
      * Safe reset of media Player instance.
      */
     protected void reset(final boolean force) {
-        if (!playerAtStates(MediaPlayerState.END, MediaPlayerState.ERROR)) {
+        if (playerNotAtStates(MediaPlayerState.END, MediaPlayerState.ERROR)) {
+            Log.v(TAG, String.format("Reset player (forced = %s", String.valueOf(force)));
             mediaPlayer.reset();
             loseAudioFocus();
             releaseWifiLock();
@@ -433,7 +462,8 @@ public class AudioMediaService extends Service
     protected void setDataSource(final String url, final boolean force) {
         if (playerAtStates(MediaPlayerState.IDLE)) {
             try {
-                mediaPlayer.setDataSource(url);
+                Log.d(TAG, String.format("Sets data source url = %s", url));
+                mediaPlayer.setDataSource(this, Uri.fromFile(new File(url)));
                 setPlayerState(MediaPlayerState.INITIALIZED);
             } catch (Exception e) {
                 Log.w(TAG, String.format("Error setting data source, url = %s", url), e);
@@ -452,6 +482,7 @@ public class AudioMediaService extends Service
      * Safe release of media player instance.
      */
     protected void release() {
+        Log.v(TAG, "Release player");
         mediaPlayer.release();
         loseAudioFocus();
         releaseWifiLock();
@@ -464,6 +495,7 @@ public class AudioMediaService extends Service
      */
     protected void prepare() {
         if (playerAtStates(MediaPlayerState.INITIALIZED, MediaPlayerState.STOPPED)) {
+            Log.v(TAG, "Prepares player");
             mediaPlayer.prepareAsync();
             setPlayerState(MediaPlayerState.PREPARING);
         }
@@ -492,10 +524,15 @@ public class AudioMediaService extends Service
         if (playerAtStates(MediaPlayerState.PREPARED, MediaPlayerState.STARTED,
                 MediaPlayerState.PAUSED, MediaPlayerState.COMPLETE)) {
             mediaPlayer.start();
+            autoplay = false;
             getAudioFocus();
             acquireWifiLock();
             setPlayerState(MediaPlayerState.STARTED);
             updatePositionBroadcast();
+        } else {
+            // force
+            reset(true);
+            setDataSource(mediaInfo.streamUrl, true);
         }
     }
 
@@ -523,6 +560,8 @@ public class AudioMediaService extends Service
             releaseWifiLock();
             setPlayerState(MediaPlayerState.STOPPED);
             stopPositionUpdateBroadcast();
+            // 1min timeout to self close
+            updatesHandler.postDelayed(stopService, STOP_DELAY_TIMER);
         }
     }
 
@@ -718,11 +757,38 @@ public class AudioMediaService extends Service
      * @return true if state is currently supported, false if not.
      */
     private boolean playerAtStates(final MediaPlayerState... states) {
+        StringBuilder expectedState = new StringBuilder("allowed states: [");
         for (MediaPlayerState state : states) {
+            expectedState.append(state.toString());
+            expectedState.append(", ");
             if (state == playerState) {
+                expectedState.append("]");
+                Log.v(TAG, String.format("Matched expected state %s -> %s", playerState.toString(), expectedState.toString()));
                 return true;
             }
         }
+        expectedState.append("]");
+        Log.i(TAG, String.format("Player is not in expected state. state = %s, %s", playerState.toString(), expectedState.toString()));
         return false;
     }
+
+    private boolean playerNotAtStates(final MediaPlayerState... states) {
+        StringBuilder notExpectedState = new StringBuilder("not allowed states: [");
+        boolean gotNotExpectedState = false;
+        for (MediaPlayerState state : states) {
+            notExpectedState.append(state.toString());
+            notExpectedState.append(", ");
+            if (state != playerState) {
+                notExpectedState.append("]");
+                Log.v(TAG, String.format("Matched not expected state %s -> %s", playerState.toString(), notExpectedState.toString()));
+                gotNotExpectedState = true;
+            }
+        }
+        notExpectedState.append("]");
+        if (!gotNotExpectedState) {
+            Log.i(TAG, String.format("Player is in expected state. state = %s, %s", playerState.toString(), notExpectedState.toString()));
+        }
+        return !gotNotExpectedState;
+    }
+
 }

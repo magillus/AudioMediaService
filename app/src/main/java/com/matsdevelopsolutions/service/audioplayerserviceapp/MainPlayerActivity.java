@@ -1,12 +1,19 @@
 package com.matsdevelopsolutions.service.audioplayerserviceapp;
 
 import android.content.Intent;
+import android.database.Cursor;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.support.annotation.IntRange;
 import android.support.annotation.Nullable;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.AppCompatSpinner;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.SimpleCursorAdapter;
+import android.widget.TextView;
 
 import com.matsdevelopsolutions.service.audiomediaservicelib.IntentGenerator;
 import com.matsdevelopsolutions.service.audiomediaservicelib.MediaInfo;
@@ -16,16 +23,23 @@ import com.matsdevelopsolutions.service.audiomediaservicelib.receiver.MediaInfoB
 import com.matsdevelopsolutions.service.audiomediaservicelib.receiver.MediaPositionBroadcastReceiver;
 import com.matsdevelopsolutions.service.audiomediaservicelib.receiver.PlayerStateBroadcastReceiver;
 
+import butterknife.Bind;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
 
 public class MainPlayerActivity extends AppCompatActivity {
 
 
+    @Bind(R.id.media_status)
+    TextView mediaStatus;
+    @Bind(R.id.stream_name)
+    TextView streamName;
+    @Bind(R.id.source_spinner)
+    AppCompatSpinner sourceSpinner;
     private MediaInfoBroadcastReceiver mediaInfoBroadcastReceiver = new MediaInfoBroadcastReceiver() {
         @Override
         public void onMediaInfoChanged(@Nullable MediaInfo mediaInfo) {
-
+            streamName.setText(mediaInfo.title);
         }
     };
     private MediaPositionBroadcastReceiver mediaPositionBroadcastReceiver = new MediaPositionBroadcastReceiver() {
@@ -37,7 +51,7 @@ public class MainPlayerActivity extends AppCompatActivity {
     private PlayerStateBroadcastReceiver playerStateBroadcastReceiver = new PlayerStateBroadcastReceiver() {
         @Override
         protected void onPlayerStateChanged(MediaPlayerState playerState) {
-
+            updateState(playerState);
         }
     };
     private MediaBufferProgressBroadcastReceiver mediaBufferProgressBroadcastReceiver = new MediaBufferProgressBroadcastReceiver() {
@@ -68,54 +82,12 @@ public class MainPlayerActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
-        registerServiceBroadcasters();
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        unregisterServiceBroadcasters();
-    }
-
-    private void unregisterServiceBroadcasters() {
-        unregisterReceiver(mediaInfoBroadcastReceiver);
-        unregisterReceiver(mediaPositionBroadcastReceiver);
-        unregisterReceiver(mediaBufferProgressBroadcastReceiver);
-        unregisterReceiver(playerStateBroadcastReceiver);
-    }
-
-    /**
-     * Initialize service broadcasters.
-     */
-    private void registerServiceBroadcasters() {
-        MediaBufferProgressBroadcastReceiver.register(this, mediaBufferProgressBroadcastReceiver);
-        PlayerStateBroadcastReceiver.register(this, playerStateBroadcastReceiver);
-        MediaPositionBroadcastReceiver.register(this, mediaPositionBroadcastReceiver);
-        MediaInfoBroadcastReceiver.register(this, mediaInfoBroadcastReceiver);
-    }
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main_player);
-        ButterKnife.bind(this);
-    }
-
-    private void playStream(MediaInfo mediaInfo) {
-        Intent playIntent = IntentGenerator.createPlayIntent(this, mediaInfo);
-        startService(playIntent);
-    }
-
-    @OnClick(R.id.button_start)
-    public void startPlayback() {
+    public void startPlayback(String path, String title) {
         MediaInfo mediaInfo = new MediaInfo();
         mediaInfo.artUri = "https://pmcdeadline2.files.wordpress.com/2014/08/bbc-logo.jpg?w=970";
-        mediaInfo.streamUrl = "http://vprbbc.streamguys.net/vprbbc24.mp3?1";
+        mediaInfo.streamUrl = path;
         mediaInfo.description = "BBC radio";
-        mediaInfo.title = "BBC radio live";
+        mediaInfo.title = title;
         playStream(mediaInfo);
     }
 
@@ -137,5 +109,97 @@ public class MainPlayerActivity extends AppCompatActivity {
     @OnClick(R.id.button_play)
     public void togglePlay() {
         startService(IntentGenerator.createPlayToggleIntent(this));
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        registerServiceBroadcasters();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        unregisterServiceBroadcasters();
+    }
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main_player);
+        ButterKnife.bind(this);
+
+        String[] cols = new String[]{MediaStore.Audio.Media._ID, MediaStore.Audio.Media.DATA,
+                MediaStore.Audio.Media.DISPLAY_NAME, MediaStore.Audio.Media.TITLE};
+        final Cursor c = getContentResolver().query(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                cols,
+                null, null, null
+        );
+
+        final SimpleCursorAdapter cursorAdapter = new SimpleCursorAdapter(this, R.layout.audio_item,
+                c, new String[]{MediaStore.Audio.Media.DISPLAY_NAME}, new int[]{R.id.audio_item_title});
+
+//
+//        String[] files = new String[0];
+//        try {
+//            files = getResources().getAssets().list("audio");
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+//        final List<Map<String, String>> data = new ArrayList<>();
+//        for (String filePath : files) {
+//            Map<String, String> map = new HashMap<>();
+//            File file = new File("audio/" + filePath);
+//            map.put("PATH", "audio/" + filePath);
+//            map.put("NAME", file.getName());
+//            data.add(map);
+//        }
+//
+//        SpinnerAdapter adapter = new SimpleAdapter(this, data, R.layout.audio_item,
+//                new String[]{"NAME"}, new int[]{R.id.audio_item_title});
+        sourceSpinner.setAdapter(cursorAdapter);
+
+        sourceSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                c.moveToPosition(position);
+
+                String url = c.getString(c.getColumnIndex(MediaStore.Audio.Media.DATA));
+                String title = c.getString(c.getColumnIndex(MediaStore.Audio.Media.TITLE));
+                startPlayback(url, title);
+                //startPlayback(data.get(position).get("PATH"));
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+                stop();
+            }
+        });
+    }
+
+    private void updateState(MediaPlayerState playerState) {
+        mediaStatus.setText(playerState.toString());
+    }
+
+    private void unregisterServiceBroadcasters() {
+        unregisterReceiver(mediaInfoBroadcastReceiver);
+        unregisterReceiver(mediaPositionBroadcastReceiver);
+        unregisterReceiver(mediaBufferProgressBroadcastReceiver);
+        unregisterReceiver(playerStateBroadcastReceiver);
+    }
+
+    /**
+     * Initialize service broadcasters.
+     */
+    private void registerServiceBroadcasters() {
+        MediaBufferProgressBroadcastReceiver.register(this, mediaBufferProgressBroadcastReceiver);
+        PlayerStateBroadcastReceiver.register(this, playerStateBroadcastReceiver);
+        MediaPositionBroadcastReceiver.register(this, mediaPositionBroadcastReceiver);
+        MediaInfoBroadcastReceiver.register(this, mediaInfoBroadcastReceiver);
+    }
+
+    private void playStream(MediaInfo mediaInfo) {
+        Intent playIntent = IntentGenerator.createPlayIntent(this, mediaInfo);
+        startService(playIntent);
     }
 }
