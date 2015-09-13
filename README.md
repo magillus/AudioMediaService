@@ -16,23 +16,23 @@ Todo show the methods usage
 ##Example usage
            
 #### Play a audio stream
-    `MediaInfo mediaInfo = new MediaInfo();
-     mediaInfo.artUri = "<ART URL>";
-     mediaInfo.streamUrl = "<Stream url>";
-     mediaInfo.description = "<Description>";
-     mediaInfo.title = "<Title>";
-     Intent playIntent = IntentGenerator.createPlayIntent(context, mediaInfo);
-     startService(playIntent);`
+    MediaInfo mediaInfo = new MediaInfo();
+    mediaInfo.artUri = "<ART URL>";
+    mediaInfo.streamUrl = "<Stream url>";
+    mediaInfo.description = "<Description>";
+    mediaInfo.title = "<Title>";
+    Intent playIntent = IntentGenerator.createPlayIntent(context, mediaInfo);
+    startService(playIntent);
 ####Set track art (see artUri above)
-    `IntentGenerator.createNotificationUpdateIntent`
+    IntentGenerator.createNotificationUpdateIntent
 ####On/off notification (TODO)
 ####Play/pause/stop stream:
-    `startService(IntentGenerator.createStopIntent(context));`
-    `startService(IntentGenerator.createPauseIntent(context));`
-    `startService(IntentGenerator.createPlayToggleIntent(context));`
+    startService(IntentGenerator.createStopIntent(context));
+    startService(IntentGenerator.createPauseIntent(context));
+    startService(IntentGenerator.createPlayToggleIntent(context));
 ####Control volume and mute
-    `startService(IntentGenerator.createToggleMuteIntent(context));`
-    `IntentGenerator.createChangeVolumeIntent(context, 0.5f)` - 50% volume
+    startService(IntentGenerator.createToggleMuteIntent(context));
+    IntentGenerator.createChangeVolumeIntent(context, 0.5f) //50% volume
     
 ####Set PendingIntent for opening main application from notification (TODO)
 
