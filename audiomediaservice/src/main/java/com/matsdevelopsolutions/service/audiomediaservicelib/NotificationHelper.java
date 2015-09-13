@@ -68,49 +68,53 @@ public class NotificationHelper {
      * @param state
      */
     public void updateNotification(MediaPlayerState state) {
-        NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-        // buildNotification
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(context);
-        builder.setTicker(mediaInfo.title)
-                .setContentTitle(mediaInfo.title)
-                .setContentInfo(mediaInfo.description)
-                .setSmallIcon(R.drawable.abc_btn_radio_material)
-                .setContentTitle(mediaInfo.title);
-        builder.setContentText(mediaInfo.description);
-        // download art
-        //builder.setLargeIcon(mediaInfo.)
-        // buttons based on state
-        switch (state) {
-            case PAUSED:
-            case COMPLETE:
-                builder.addAction(android.R.drawable.ic_media_play, context.getString(R.string.label_play),
-                        PendingIntent.getService(context, 0, IntentGenerator.createPlayToggleIntent(context), PendingIntent.FLAG_ONE_SHOT));
-                break;
-            case STARTED:
-                builder.addAction(android.R.drawable.ic_media_pause, context.getString(R.string.label_pause),
-                        PendingIntent.getService(context, 0, IntentGenerator.createPauseIntent(context), PendingIntent.FLAG_ONE_SHOT));
-                break;
-            default:
-                notificationManager.cancel(NOTIFICATION_ID);
-                return;
+        if (mediaInfo != null) {
+            NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+            // buildNotification
+            NotificationCompat.Builder builder = new NotificationCompat.Builder(context);
+            builder.setTicker(mediaInfo.title)
+                    .setContentTitle(mediaInfo.title)
+                    .setContentInfo(mediaInfo.description)
+                    .setSmallIcon(R.drawable.abc_btn_radio_material)
+                    .setContentTitle(mediaInfo.title);
+            builder.setContentText(mediaInfo.description);
+            // download art
+            //builder.setLargeIcon(mediaInfo.)
+            // buttons based on state
+            switch (state) {
+                case PAUSED:
+                case COMPLETE:
+                    builder.addAction(android.R.drawable.ic_media_play, context.getString(R.string.label_play),
+                            PendingIntent.getService(context, 0, IntentGenerator.createPlayToggleIntent(context), PendingIntent.FLAG_ONE_SHOT));
+                    break;
+                case STARTED:
+                    builder.addAction(android.R.drawable.ic_media_pause, context.getString(R.string.label_pause),
+                            PendingIntent.getService(context, 0, IntentGenerator.createPauseIntent(context), PendingIntent.FLAG_ONE_SHOT));
+                    break;
+                default:
+                    notificationManager.cancel(NOTIFICATION_ID);
+                    return;
+            }
+            builder.addAction(android.R.drawable.ic_delete, context.getString(R.string.label_stop),
+                    PendingIntent.getService(context, 0, IntentGenerator.createStopIntent(context), PendingIntent.FLAG_ONE_SHOT));
+
+
+            builder.setDeleteIntent(PendingIntent.getService(context, 0,
+                    IntentGenerator.createStopIntent(context),
+                    PendingIntent.FLAG_ONE_SHOT));
+
+            if (appPendingIntent != null) {
+                builder.setContentIntent(appPendingIntent);
+            }
+
+            Notification notification = builder.build();
+
+            notification.flags |= Notification.FLAG_NO_CLEAR | Notification.FLAG_ONGOING_EVENT;
+            notificationManager.
+                    notify(NOTIFICATION_ID, notification);
+        } else {
+            clear();
         }
-        builder.addAction(android.R.drawable.ic_delete, context.getString(R.string.label_stop),
-                PendingIntent.getService(context, 0, IntentGenerator.createStopIntent(context), PendingIntent.FLAG_ONE_SHOT));
-
-
-        builder.setDeleteIntent(PendingIntent.getService(context, 0,
-                IntentGenerator.createStopIntent(context),
-                PendingIntent.FLAG_ONE_SHOT));
-
-        if (appPendingIntent != null) {
-            builder.setContentIntent(appPendingIntent);
-        }
-
-        Notification notification = builder.build();
-
-        notification.flags |= Notification.FLAG_NO_CLEAR | Notification.FLAG_ONGOING_EVENT;
-        notificationManager.
-                notify(NOTIFICATION_ID, notification);
     }
 
     public void clear() {
