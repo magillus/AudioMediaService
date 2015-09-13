@@ -84,7 +84,7 @@ public class NotificationHelper {
             case PAUSED:
             case COMPLETE:
                 builder.addAction(android.R.drawable.ic_media_play, context.getString(R.string.label_play),
-                        PendingIntent.getService(context, 0, IntentGenerator.createPlayIntent(context), PendingIntent.FLAG_ONE_SHOT));
+                        PendingIntent.getService(context, 0, IntentGenerator.createPlayToggleIntent(context), PendingIntent.FLAG_ONE_SHOT));
                 break;
             case STARTED:
                 builder.addAction(android.R.drawable.ic_media_pause, context.getString(R.string.label_pause),

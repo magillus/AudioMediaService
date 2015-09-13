@@ -172,8 +172,10 @@ public class AudioMediaService extends Service
     private final Runnable stopService = new Runnable() {
         @Override
         public void run() {
-            Log.d(TAG, "After stop timeout closing AudioMediaService.");
-            stopSelf();
+            if (playerNotAtStates(MediaPlayerState.PAUSED, MediaPlayerState.STARTED)) {
+                Log.d(TAG, "After stop timeout closing AudioMediaService.");
+                stopSelf();
+            }
         }
     };
     /**
@@ -451,6 +453,7 @@ public class AudioMediaService extends Service
             release();
             initMediaPlayer();
         }
+        delayStop();
     }
 
     /**
@@ -488,6 +491,7 @@ public class AudioMediaService extends Service
         releaseWifiLock();
         setPlayerState(MediaPlayerState.END);
         stopPositionUpdateBroadcast();
+        stopSelf();
     }
 
     /**
@@ -560,9 +564,14 @@ public class AudioMediaService extends Service
             releaseWifiLock();
             setPlayerState(MediaPlayerState.STOPPED);
             stopPositionUpdateBroadcast();
-            // 1min timeout to self close
-            updatesHandler.postDelayed(stopService, STOP_DELAY_TIMER);
+            delayStop();
         }
+    }
+
+    private void delayStop() {
+        Log.d(TAG, "Delayed stop service called");
+        // 1min timeout to self close
+        updatesHandler.postDelayed(stopService, STOP_DELAY_TIMER);
     }
 
     private void toggleVolume() {
