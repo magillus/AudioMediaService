@@ -32,12 +32,12 @@ public class AudioMediaService extends Service
     /**
      * Intent action to start playback of media.
      * Required Extras:
-     * <li>{SOURCE_URL_ARG} - Media Url - (optional if already media source is loaded) - plays a media stream</li>
-     * <li>{SOURCE_TITLE_ARG} - Media title - (optional if notification is not used)</li>
+     * {@link #SOURCE_URL_ARG} - Media Url - (optional if already media source is loaded) - plays a media stream
+     * {@link #SOURCE_TITLE_ARG} - Media title - (optional if notification is not used)
      * Optional parameter:
-     * <li>{SOURCE_DESC_ARG} - Media description</li>
-     * <li>{SOURCE_ART_URI_ARG} - Media art URI - local file or url</li>
-     * <li>{NOTIFICATION_FLAG_ARG} - Show notification flag -  - will show player notification - requires title, icon/art</li>
+     * {@link #SOURCE_DESC_ARG} - Media description
+     * {@link #SOURCE_ART_URI_ARG} - Media art URI - local file or url
+     * {@link #NOTIFICATION_STYLE_ARG} - Show notification flag -  - will show player notification - requires title, icon/art
      */
     public static final String ACTION_PLAY = PACKAGE_NAME + "AudioMediaService.PLAY";
     /**
@@ -52,15 +52,15 @@ public class AudioMediaService extends Service
     /**
      * Intent action to seek non-live stream to a given position
      * Required Extras:
-     * <li>{SEEK_POSITION_ARG} - position in seconds to media stream seek to</li>
+     * {@link #SEEK_POSITION_ARG} - position in seconds to media stream seek to
      */
     public static final String ACTION_SEEK = PACKAGE_NAME + "AudioMediaService.SEEK_TO";
     /**
      * Intent action to update style of notification bar.
      * Extras:
-     * <li>{NOTIFICATION_STYLE_ARG} - style type for notification</li>
-     * <li>{NOTIFICATION_BACKGROUND_ARG} - color of the background</li>
-     * <li>{NOTIFICATION_CONFIG_FLAG_ARG} - flags to enable/disable features on notification</li>
+     * {@link #NOTIFICATION_STYLE_ARG} - style type for notification
+     * todo- color of the background
+     * {@link #NOTIFICATION_CONFIG_FLAG_ARG} - flags to enable/disable features on notification
      */
     public static final String ACTION_NOTIFICATION_STYLE = PACKAGE_NAME + "AudioMediaService.NOTIFICATION_STYLE";
     /**
