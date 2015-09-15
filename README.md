@@ -8,7 +8,22 @@ Work in progress, I planned the releases in roadmap with 1.0 version stable and 
 
 
 ##Integration
-Add library to your project dependency and use helper class (name of class) static methods to communicate with service and it media player.
+Add library to your project dependency by adding repository in main project's 'build.gradle' file:
+
+    allprojects {
+        repositories {
+            ....
+            maven {
+                url  "http://dl.bintray.com/magillus/maven"
+            }
+        }
+    }
+    
+Add dependency:
+
+    compile(group: 'com.matsdevelopsolutions', name: 'audioservicelibrary', version: '0.1', ext: 'aar')
+    
+and use helper class (name of class) static methods to communicate with service and it media player.
 todo show dependency snippet
 Register BroadcastReceiver from helper class (name of class) methods to get updates about playback stream, buffering, state of the player and progress.
 Todo show the methods usage

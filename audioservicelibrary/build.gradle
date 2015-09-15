@@ -20,11 +20,11 @@ android {
 
 ext {
     bintrayRepo = 'maven'
-    bintrayName = 'com.matsdevelopsolutions.service.audiomediaservicelib'
+    bintrayName = 'audioservicelibrary'
 
-    publishedGroupId = 'com.matsdevelopsolutions.service'
-    libraryName = 'AudioMediaService'
-    artifact = 'audiomediaservicelib'
+    publishedGroupId = 'com.matsdevelopsolutions'
+    libraryName = 'audioservicelibrary'
+    artifact = 'audioservicelibrary'
 
     libraryDescription = 'Android audio media player wrapper service library'
 
