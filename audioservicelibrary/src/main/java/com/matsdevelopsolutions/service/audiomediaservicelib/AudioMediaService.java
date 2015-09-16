@@ -289,71 +289,74 @@ public class AudioMediaService extends Service
         if (action == null) {
             return super.onStartCommand(intent, flags, startId);
         }
-        Log.d(TAG, String.format("onStartCommand, action = %s", action));
-        switch (action) {
-            case ACTION_PLAY:
-                // parse arguments and optionals
-                String newUrl = fetchStringParameter(intent, SOURCE_URL_ARG);
-                boolean loadAndPlay = !(mediaInfo == null || !newUrl.equalsIgnoreCase(mediaInfo.streamUrl));
-                updateMediaInfoFromIntent(intent);
-                if (newUrl != null) {
-                    if (loadAndPlay) {
-                        // same stream - just start
-                        start();// force start or load data again
+        try {
+            Log.d(TAG, String.format("onStartCommand, action = %s", action));
+            switch (action) {
+                case ACTION_PLAY:
+                    // parse arguments and optionals
+                    String newUrl = fetchStringParameter(intent, SOURCE_URL_ARG);
+                    boolean loadAndPlay = !(mediaInfo == null || !newUrl.equalsIgnoreCase(mediaInfo.streamUrl));
+                    updateMediaInfoFromIntent(intent);
+                    if (newUrl != null) {
+                        if (loadAndPlay) {
+                            // same stream - just start
+                            start();// force start or load data again
+                        } else {
+                            // enable autoplay and load
+                            autoplay = fetchBooleanParameter(intent, AUTO_PLAY_ARG, true);
+                            setDataSource(mediaInfo.streamUrl, true);
+                            prepare();
+                            // check for notification details in intent
+                            String style = fetchStringParameter(intent, NOTIFICATION_STYLE_ARG, notificationManager.getCurrentStyle());
+                            int flag = fetchIntParameter(intent, NOTIFICATION_CONFIG_FLAG_ARG, notificationManager.getCurrentFlags());
+                            notificationManager.updateStyle(style, flag, mediaInfo);
+                        }
                     } else {
-                        // enable autoplay and load
-                        autoplay = fetchBooleanParameter(intent, AUTO_PLAY_ARG, true);
-                        setDataSource(mediaInfo.streamUrl, true);
-                        prepare();
-                        // check for notification details in intent
-                        String style = fetchStringParameter(intent, NOTIFICATION_STYLE_ARG, notificationManager.getCurrentStyle());
-                        int flag = fetchIntParameter(intent, NOTIFICATION_CONFIG_FLAG_ARG, notificationManager.getCurrentFlags());
-                        notificationManager.updateStyle(style, flag, mediaInfo);
+                        Log.w(TAG, "playback url is empty");
+                        if (mediaInfo != null && mediaInfo.streamUrl != null) {
+                            start();
+                        }
                     }
-                } else {
-                    Log.w(TAG, "playback url is empty");
-                    if (mediaInfo != null && mediaInfo.streamUrl != null) {
+                    break;
+                case ACTION_PLAY_TOGGLE:
+                    if (playerState == MediaPlayerState.STARTED) {
+                        pause();
+                    } else if (playerState == MediaPlayerState.STOPPED) {
+                        autoplay = true;
+                        prepare();
+                    } else {
                         start();
                     }
-                }
-                break;
-            case ACTION_PLAY_TOGGLE:
-                if (playerState == MediaPlayerState.STARTED) {
+                    break;
+                case ACTION_PAUSE:
                     pause();
-                } else if (playerState == MediaPlayerState.STOPPED) {
-                    autoplay = true;
-                    prepare();
-                } else {
-                    start();
-                }
-                break;
-            case ACTION_PAUSE:
-                pause();
-                break;
-            case ACTION_STOP:
-                stop();
-                break;
-            case ACTION_SEEK:
-                int position = fetchIntParameter(intent, SEEK_POSITION_ARG, 0);
-                seekTo(position);
-                break;
-            case ACTION_NOTIFICATION_STYLE:
-                String style = fetchStringParameter(intent, NOTIFICATION_STYLE_ARG);
-                int flag = fetchIntParameter(intent, NOTIFICATION_CONFIG_FLAG_ARG, DEFAULT_NOTIFICATION_FLAG);
-                updateMediaInfoFromIntent(intent);
-                notificationManager.updateStyle(style, flag, mediaInfo);
-                break;
-            case ACTION_MUTE_TOGGLE:
-                toggleVolume();
-                break;
-            case ACTION_CHANGE_VOLUME:
-                float newVolume = fetchFloatParameter(intent, VOLUME_VALUE_ARG, getVolume());
-                setVolume(newVolume);
-            default:
-                return START_CONTINUATION_MASK;
+                    break;
+                case ACTION_STOP:
+                    stop();
+                    break;
+                case ACTION_SEEK:
+                    int position = fetchIntParameter(intent, SEEK_POSITION_ARG, 0);
+                    seekTo(position);
+                    break;
+                case ACTION_NOTIFICATION_STYLE:
+                    String style = fetchStringParameter(intent, NOTIFICATION_STYLE_ARG);
+                    int flag = fetchIntParameter(intent, NOTIFICATION_CONFIG_FLAG_ARG, DEFAULT_NOTIFICATION_FLAG);
+                    updateMediaInfoFromIntent(intent);
+                    notificationManager.updateStyle(style, flag, mediaInfo);
+                    break;
+                case ACTION_MUTE_TOGGLE:
+                    toggleVolume();
+                    break;
+                case ACTION_CHANGE_VOLUME:
+                    float newVolume = fetchFloatParameter(intent, VOLUME_VALUE_ARG, getVolume());
+                    setVolume(newVolume);
+                default:
+                    return START_CONTINUATION_MASK;
 
+            }
+        } catch (Exception ex) {
+            Log.e(TAG, String.format("Error processing command from intent action: %s ", action), ex);
         }
-
         return super.onStartCommand(intent, flags, startId);
     }
 
@@ -742,7 +745,7 @@ public class AudioMediaService extends Service
     /**
      * Initialize media player, releases previous isntance if was created.s
      */
-    private void initMediaPlayer() {
+    private synchronized void initMediaPlayer() {
         if (mediaPlayer != null) {
             mediaPlayer.release();
             mediaPlayer = null;

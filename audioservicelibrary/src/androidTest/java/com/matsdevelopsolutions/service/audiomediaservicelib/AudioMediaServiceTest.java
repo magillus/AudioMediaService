@@ -3,7 +3,6 @@ package com.matsdevelopsolutions.service.audiomediaservicelib;
 import android.app.Application;
 import android.support.annotation.Nullable;
 import android.test.ApplicationTestCase;
-import android.test.suitebuilder.annotation.SmallTest;
 
 import com.matsdevelopsolutions.service.audiomediaservicelib.receiver.MediaInfoBroadcastReceiver;
 
@@ -16,8 +15,7 @@ public class AudioMediaServiceTest extends ApplicationTestCase<Application> {
     }
 
 
-    @SmallTest
-    public void nullMediaInfoBroadcastTest() {
+    public void testnullMediaInfoBroadcastTest() {
 
         MediaInfoBroadcastReceiver.register(getContext(), new MediaInfoBroadcastReceiver() {
             @Override
@@ -30,8 +28,7 @@ public class AudioMediaServiceTest extends ApplicationTestCase<Application> {
 
     }
 
-    @SmallTest
-    public void mediaInfoBroadcastTest() {
+    public void testmediaInfoBroadcastTest() {
         final MediaInfo mediaInfo = new MediaInfo();
         mediaInfo.title = "Test title";
         mediaInfo.description = "Test description for media Item";
@@ -49,6 +46,7 @@ public class AudioMediaServiceTest extends ApplicationTestCase<Application> {
         });
         IntentBroadcaster intentBroadcaster = new IntentBroadcaster(getContext());
         intentBroadcaster.mediaInfoChanged(mediaInfo);
+
 
     }
 
