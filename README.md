@@ -53,9 +53,11 @@ Todo show the methods usage
 
 ##Roadmap
 + 0.1 first release - simple URL playback
-+ 0.2 unit tests for service
++ 0.2 playback resume option and restart per url #1, MediaReqeust #6, notification pending intent #5
 + 0.3 bulletproof playback requests - restarts playback on play even if player state is invalid
-+ 0.8 working audio service with example app
++ 0.4 working audio service with example app - media layer from local - #7
++ 0.5 working player example app with remote urls and bug fixes #8
++ 0.6 art URI passing for notification view background, passing notification icon
 + 0.9 notification management and styling
 + 1.0 playing single stream and control of it though intents and notification, pallette colors on notification based art image.
 + 1.1 bug fixes and optimization updates
