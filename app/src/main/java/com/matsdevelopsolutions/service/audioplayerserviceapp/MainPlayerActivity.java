@@ -182,7 +182,7 @@ public class MainPlayerActivity extends AppCompatActivity {
     }
 
     private void playStream(MediaInfo mediaInfo) {
-        Intent playIntent = IntentGenerator.createPlayIntent(this, mediaInfo);
+        Intent playIntent = IntentGenerator.createPlayIntent(this, mediaInfo, true);
         startService(playIntent);
     }
 }
