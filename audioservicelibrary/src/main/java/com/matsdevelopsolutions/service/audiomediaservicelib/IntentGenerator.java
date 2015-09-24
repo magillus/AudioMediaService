@@ -18,12 +18,14 @@ public final class IntentGenerator {
      * @param title            media title (required)
      * @param description      media short description
      * @param autoplay         true if autoplay is on
+     * @param resumePlayback   resumes playback of audio from last position.
      * @param notificationFlag notification flag.
      * @return play intent
      */
     public static Intent createPlayIntent(Context context, final String url, final String title,
                                           final String description, final String artUrl,
-                                          final boolean autoplay, final int notificationFlag, final String notificationStyle) {
+                                          final boolean autoplay, final boolean resumePlayback,
+                                          final int notificationFlag, final String notificationStyle) {
         Intent intent = new Intent(AudioMediaService.ACTION_PLAY);
         intent.setComponent(new ComponentName(context, AudioMediaService.class));
         intent.putExtra(AudioMediaService.SOURCE_URL_ARG, url);
@@ -31,6 +33,7 @@ public final class IntentGenerator {
         intent.putExtra(AudioMediaService.SOURCE_DESC_ARG, description);
         intent.putExtra(AudioMediaService.SOURCE_ART_URI_ARG, artUrl);
         intent.putExtra(AudioMediaService.AUTO_PLAY_ARG, autoplay);
+        intent.putExtra(AudioMediaService.RESUME_PLAY_ARG, resumePlayback);
         intent.putExtra(AudioMediaService.NOTIFICATION_CONFIG_FLAG_ARG, notificationFlag);
         intent.putExtra(AudioMediaService.NOTIFICATION_STYLE_ARG, notificationStyle);
         return intent;
@@ -69,11 +72,12 @@ public final class IntentGenerator {
      *
      * @param context context
      * @param mediaInfo
+     * @param resumePlayback if playback resumes from previous location -per url
      * @return
      */
-    public static Intent createPlayIntent(Context context, MediaInfo mediaInfo) {
+    public static Intent createPlayIntent(Context context, MediaInfo mediaInfo, boolean resumePlayback) {
         return createPlayIntent(context, mediaInfo.streamUrl, mediaInfo.title,
-                mediaInfo.description, mediaInfo.artUri, true,
+                mediaInfo.description, mediaInfo.artUri, true, resumePlayback,
                 AudioMediaService.DEFAULT_NOTIFICATION_FLAG, AudioMediaService.FLAG_NOTIFICATION_STYLE_NORMAL);
     }
 

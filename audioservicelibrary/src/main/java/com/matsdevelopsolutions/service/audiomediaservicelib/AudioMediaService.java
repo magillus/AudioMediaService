@@ -104,6 +104,10 @@ public class AudioMediaService extends Service
      */
     static final String AUTO_PLAY_ARG = "AUTO_PLAY_ARG";
     /**
+     * Flag to mark to resume play from last location.
+     */
+    static final String RESUME_PLAY_ARG = "RESUME_PLAY_ARG";
+    /**
      * Notification style extras name.
      */
     static final String NOTIFICATION_STYLE_ARG = "NOTIFICATION_STYLE_ARG";
@@ -154,21 +158,14 @@ public class AudioMediaService extends Service
     private static final int POSITION_UPDATE_TIMESPAN_DEFAULT = 500; //ms
     private static final float VOLUME_MUTED = 0f;
     private static final long STOP_DELAY_TIMER = 60 * 1000;
-    private final Runnable positionUpdate = new Runnable() {
-        @Override
-        public void run() {
-            if (intentBroadcaster != null && mediaPlayer != null
-                    && playerAtStates(MediaPlayerState.PAUSED, MediaPlayerState.STARTED, MediaPlayerState.STOPPED)) {
-                int currentPosition = mediaPlayer.getCurrentPosition();
-                Log.v(TAG, String.format("Media position change : %s", currentPosition));
-                intentBroadcaster.currentPosition(currentPosition);
-                if (isPositionUpdateActive) {
-                    updatePositionBroadcast();
-                }
-            }
-        }
-    };
-
+    /**
+     * Media player instance.
+     */
+    private MediaPlayer mediaPlayer;
+    /**
+     * Media player state
+     */
+    private MediaPlayerState playerState;
     private final Runnable stopService = new Runnable() {
         @Override
         public void run() {
@@ -178,14 +175,6 @@ public class AudioMediaService extends Service
             }
         }
     };
-    /**
-     * Media player instance.
-     */
-    private MediaPlayer mediaPlayer;
-    /**
-     * Media player state
-     */
-    private MediaPlayerState playerState;
     /**
      * Notification manager instance.
      */
@@ -207,6 +196,31 @@ public class AudioMediaService extends Service
     private Handler updatesHandler;
     private volatile boolean isPositionUpdateActive = false;
     private float previousVolume = 0f;
+    private MediaProgressPreferences mediaProgressPreferences;
+    private final Runnable positionUpdate = new Runnable() {
+        @Override
+        public void run() {
+            if (intentBroadcaster != null && mediaPlayer != null
+                    && playerAtStates(MediaPlayerState.PAUSED, MediaPlayerState.STARTED, MediaPlayerState.STOPPED)) {
+                int currentPosition = mediaPlayer.getCurrentPosition();
+                Log.v(TAG, String.format("Media position change : %s", currentPosition));
+                if (mediaInfo != null) {
+                    mediaProgressPreferences.putProgress(mediaInfo.streamUrl, currentPosition);
+                }
+                intentBroadcaster.currentPosition(currentPosition);
+                if (isPositionUpdateActive) {
+                    updatePositionBroadcast();
+                }
+            }
+        }
+    };
+    private int startPlaybackPosition = 0;
+
+    /**
+     * Creates instance of {AudioMediaService}.
+     */
+    public AudioMediaService() {
+    }
 
     /**
      * Gets volume value
@@ -246,12 +260,6 @@ public class AudioMediaService extends Service
     }
 
     /**
-     * Creates instance of {AudioMediaService}.
-     */
-    public AudioMediaService() {
-    }
-
-    /**
      * Prepares value for wifi stream lock.s
      */
     @Override
@@ -262,6 +270,7 @@ public class AudioMediaService extends Service
         // todo: initialize only when notification is enabled - it does by default.
         notificationManager = new NotificationHelper(this);
         intentBroadcaster = new IntentBroadcaster(this);
+        mediaProgressPreferences = new MediaProgressPreferences(this);
 
         updatesHandler = new Handler();
         wifiStreamLock = ((WifiManager) getSystemService(Context.WIFI_SERVICE))
@@ -296,6 +305,9 @@ public class AudioMediaService extends Service
                     // parse arguments and optionals
                     String newUrl = fetchStringParameter(intent, SOURCE_URL_ARG);
                     boolean loadAndPlay = !(mediaInfo == null || !newUrl.equalsIgnoreCase(mediaInfo.streamUrl));
+                    if (fetchBooleanParameter(intent, RESUME_PLAY_ARG, false)) {
+                        startPlaybackPosition = mediaProgressPreferences.getProgress(newUrl);
+                    }
                     updateMediaInfoFromIntent(intent);
                     if (newUrl != null) {
                         if (loadAndPlay) {
@@ -386,7 +398,9 @@ public class AudioMediaService extends Service
     public void onSeekComplete(MediaPlayer mp) {
         // no change on player state
         // broadcast seek complete intent
-        intentBroadcaster.currentPosition(mp.getCurrentPosition());
+        int currentPosition = mp.getCurrentPosition();
+        mediaProgressPreferences.putProgress(mediaInfo.streamUrl, currentPosition);
+        intentBroadcaster.currentPosition(currentPosition);
     }
 
     @Override
@@ -423,6 +437,7 @@ public class AudioMediaService extends Service
         if (playerAtStates(MediaPlayerState.PREPARING)) {
             setPlayerState(MediaPlayerState.PREPARED);
             if (autoplay) {
+                seekTo(startPlaybackPosition);
                 start();
             }
         }
@@ -531,6 +546,7 @@ public class AudioMediaService extends Service
     protected void start() {
         if (playerAtStates(MediaPlayerState.PREPARED, MediaPlayerState.STARTED,
                 MediaPlayerState.PAUSED, MediaPlayerState.COMPLETE)) {
+            startPlaybackPosition = 0;
             mediaPlayer.start();
             autoplay = false;
             getAudioFocus();
@@ -549,6 +565,9 @@ public class AudioMediaService extends Service
      */
     protected void pause() {
         if (playerAtStates(MediaPlayerState.STARTED)) {
+            if (mediaInfo != null) {
+                mediaProgressPreferences.putProgress(mediaInfo.streamUrl, mediaPlayer.getCurrentPosition());
+            }
             mediaPlayer.pause();
             loseAudioFocus();
             releaseWifiLock();
@@ -563,6 +582,9 @@ public class AudioMediaService extends Service
     protected void stop() {
         if (playerAtStates(MediaPlayerState.STARTED, MediaPlayerState.COMPLETE,
                 MediaPlayerState.STOPPED, MediaPlayerState.PREPARED, MediaPlayerState.PAUSED)) {
+            if (mediaInfo != null) {
+                mediaProgressPreferences.putProgress(mediaInfo.streamUrl, mediaPlayer.getCurrentPosition());
+            }
             mediaPlayer.stop();
             loseAudioFocus();
             releaseWifiLock();
