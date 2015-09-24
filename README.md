@@ -53,7 +53,7 @@ Todo show the methods usage
 
 ##Roadmap
 + 0.1 first release - simple URL playback
-+ 0.2 playback resume option and restart per url [#1]Issue1, MediaReqeust #6, notification pending intent #5
++ 0.2 playback resume option and restart per url #1, MediaReqeust #6, notification pending intent #5
 + 0.3 bulletproof playback requests - restarts playback on play even if player state is invalid
 + 0.4 working audio service with example app - media layer from local - #7
 + 0.5 working player example app with remote urls and bug fixes #8
