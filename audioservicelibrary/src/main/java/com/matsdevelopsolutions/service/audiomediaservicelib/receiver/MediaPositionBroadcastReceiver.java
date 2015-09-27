@@ -47,8 +47,9 @@ public abstract class MediaPositionBroadcastReceiver extends BroadcastReceiver {
     public void onReceive(Context context, Intent intent) {
         try {
             int currentPosition = intent.getIntExtra(IntentBroadcaster.CURRENT_POSITION_ARG, -1);
-            if (currentPosition >= 0) {
-                onCurrentPositionChanged(currentPosition);
+            int duration = intent.getIntExtra(IntentBroadcaster.MEDIA_DURATION_ARG, 0);
+            if (currentPosition >= 0 && duration > 0) {
+                onCurrentPositionChanged(currentPosition, duration);
             } else {
                 Log.w(TAG, String.format("Received wrong value in %s intent.", IntentBroadcaster.ACTION_CURRENT_POSITION_CHANGE));
             }
@@ -62,5 +63,5 @@ public abstract class MediaPositionBroadcastReceiver extends BroadcastReceiver {
      *
      * @param currentPosition value of current position of media player.
      */
-    public abstract void onCurrentPositionChanged(int currentPosition);
+    public abstract void onCurrentPositionChanged(int currentPosition, int duration);
 }

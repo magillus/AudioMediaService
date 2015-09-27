@@ -2,11 +2,6 @@ package com.matsdevelopsolutions.service.audiomediaservicelib;
 
 import android.content.Context;
 import android.content.Intent;
-import android.provider.MediaStore;
-import android.support.annotation.IntRange;
-import android.test.mock.MockContext;
-
-import com.matsdevelopsolutions.service.audiomediaservicelib.receiver.MediaBufferProgressBroadcastReceiver;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -21,7 +16,7 @@ import static org.junit.Assert.assertEquals;
  * To work on unit tests, switch the Test Artifact in the Build Variants view.
  */
 @RunWith(RobolectricGradleTestRunner.class)
-@Config(constants = BuildConfig.class,sdk = 18)
+@Config(constants = BuildConfig.class, sdk = 18)
 public class IntentGenerationTest {
 
     Context context;
@@ -46,7 +41,7 @@ public class IntentGenerationTest {
         mediaInfo.artUri = "http://testUrlart";
         mediaInfo.description = "Test stream for UI Testing";
         mediaInfo.title = "Test 1";
-        Intent playIntent = IntentGenerator.createPlayIntent(context, mediaInfo);
+        Intent playIntent = IntentGenerator.createPlayIntent(context, mediaInfo, false);
         assertEquals(playIntent.getComponent().getPackageName(), context.getPackageName());
 
         assertEquals(playIntent.getAction(), AudioMediaService.ACTION_PLAY);
@@ -89,7 +84,15 @@ public class IntentGenerationTest {
         Intent intent = IntentGenerator.createSeekIntent(context, 30);
         assertEquals(intent.getComponent().getPackageName(), context.getPackageName());
         assertEquals(intent.getAction(), AudioMediaService.ACTION_SEEK);
-        assertEquals(intent.getIntExtra(AudioMediaService.SEEK_POSITION_ARG, 0),30);
+        assertEquals(intent.getIntExtra(AudioMediaService.SEEK_POSITION_ARG, 0), 30);
+    }
+
+    @Test
+    public void generateSeekByIntent() {
+        Intent intent = IntentGenerator.createSeekByIntent(context, -15);
+        assertEquals(intent.getComponent().getPackageName(), context.getPackageName());
+        assertEquals(intent.getAction(), AudioMediaService.ACTION_SEEK_BY);
+        assertEquals(intent.getIntExtra(AudioMediaService.SEEK_POSITION_DELTA_ARG, 0), -15);
     }
 
     @Test

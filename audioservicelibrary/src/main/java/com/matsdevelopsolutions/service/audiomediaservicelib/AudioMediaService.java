@@ -56,6 +56,12 @@ public class AudioMediaService extends Service
      */
     public static final String ACTION_SEEK = PACKAGE_NAME + "AudioMediaService.SEEK_TO";
     /**
+     * Intent action to seek forward or backward by position delta.
+     * Required Extras:
+     * {@link #SEEK_POSITION_DELTA_ARG} - delta of seek position, if negative will seek backwards
+     */
+    public static final String ACTION_SEEK_BY = ACTION_SEEK + "_BY";
+    /**
      * Intent action to update style of notification bar.
      * Extras:
      * {@link #NOTIFICATION_STYLE_ARG} - style type for notification
@@ -99,6 +105,10 @@ public class AudioMediaService extends Service
      * Media source seek position in seconds extras name.
      */
     static final String SEEK_POSITION_ARG = "SEEK_POSITION_ARG";
+    /**
+     * Media source seek position delta in miliseconds.
+     */
+    static final String SEEK_POSITION_DELTA_ARG = "SEEK_POSITION_DELTA_ARG";
     /**
      * Media auto play extra name.
      */
@@ -158,6 +168,32 @@ public class AudioMediaService extends Service
     private static final int POSITION_UPDATE_TIMESPAN_DEFAULT = 500; //ms
     private static final float VOLUME_MUTED = 0f;
     private static final long STOP_DELAY_TIMER = 60 * 1000;
+    private final Runnable stopService = new Runnable() {
+        @Override
+        public void run() {
+            if (playerNotAtStates("stopService", MediaPlayerState.PAUSED, MediaPlayerState.STARTED)) {
+                Log.d(TAG, "After stop timeout closing AudioMediaService.");
+                stopSelf();
+            }
+        }
+    };
+    private final Runnable positionUpdate = new Runnable() {
+        @Override
+        public void run() {
+            if (intentBroadcaster != null && mediaPlayer != null
+                    && playerAtStates("positionUpdate", MediaPlayerState.PAUSED, MediaPlayerState.STARTED, MediaPlayerState.STOPPED)) {
+                int currentPosition = mediaPlayer.getCurrentPosition();
+                Log.v(TAG, String.format("Media position change : %s", currentPosition));
+                if (mediaInfo != null) {
+                    mediaProgressPreferences.putProgress(mediaInfo.streamUrl, currentPosition);
+                }
+                intentBroadcaster.currentPosition(currentPosition, mediaPlayer.getDuration());
+                if (isPositionUpdateActive) {
+                    updatePositionBroadcast();
+                }
+            }
+        }
+    };
     /**
      * Media player instance.
      */
@@ -166,15 +202,6 @@ public class AudioMediaService extends Service
      * Media player state
      */
     private MediaPlayerState playerState;
-    private final Runnable stopService = new Runnable() {
-        @Override
-        public void run() {
-            if (playerNotAtStates(MediaPlayerState.PAUSED, MediaPlayerState.STARTED)) {
-                Log.d(TAG, "After stop timeout closing AudioMediaService.");
-                stopSelf();
-            }
-        }
-    };
     /**
      * Notification manager instance.
      */
@@ -197,30 +224,7 @@ public class AudioMediaService extends Service
     private volatile boolean isPositionUpdateActive = false;
     private float previousVolume = 0f;
     private MediaProgressPreferences mediaProgressPreferences;
-    private final Runnable positionUpdate = new Runnable() {
-        @Override
-        public void run() {
-            if (intentBroadcaster != null && mediaPlayer != null
-                    && playerAtStates(MediaPlayerState.PAUSED, MediaPlayerState.STARTED, MediaPlayerState.STOPPED)) {
-                int currentPosition = mediaPlayer.getCurrentPosition();
-                Log.v(TAG, String.format("Media position change : %s", currentPosition));
-                if (mediaInfo != null) {
-                    mediaProgressPreferences.putProgress(mediaInfo.streamUrl, currentPosition);
-                }
-                intentBroadcaster.currentPosition(currentPosition);
-                if (isPositionUpdateActive) {
-                    updatePositionBroadcast();
-                }
-            }
-        }
-    };
     private int startPlaybackPosition = 0;
-
-    /**
-     * Creates instance of {AudioMediaService}.
-     */
-    public AudioMediaService() {
-    }
 
     /**
      * Gets volume value
@@ -257,6 +261,12 @@ public class AudioMediaService extends Service
      */
     protected synchronized void setPlayerState(MediaPlayerState state) {
         setPlayerState(state, true);
+    }
+
+    /**
+     * Creates instance of {AudioMediaService}.
+     */
+    public AudioMediaService() {
     }
 
     /**
@@ -305,6 +315,7 @@ public class AudioMediaService extends Service
                     // parse arguments and optionals
                     String newUrl = fetchStringParameter(intent, SOURCE_URL_ARG);
                     boolean loadAndPlay = !(mediaInfo == null || !newUrl.equalsIgnoreCase(mediaInfo.streamUrl));
+                    Log.v(TAG, String.format("old URL: %s - newUrl %s  -> %bs", (mediaInfo != null) ? mediaInfo.streamUrl : "(null)", newUrl, loadAndPlay));
                     if (fetchBooleanParameter(intent, RESUME_PLAY_ARG, false)) {
                         startPlaybackPosition = mediaProgressPreferences.getProgress(newUrl);
                     }
@@ -349,6 +360,10 @@ public class AudioMediaService extends Service
                 case ACTION_SEEK:
                     int position = fetchIntParameter(intent, SEEK_POSITION_ARG, 0);
                     seekTo(position);
+                    break;
+                case ACTION_SEEK_BY:
+                    int deltaSeek = fetchIntParameter(intent, SEEK_POSITION_DELTA_ARG, 0);
+                    seekBy(deltaSeek);
                     break;
                 case ACTION_NOTIFICATION_STYLE:
                     String style = fetchStringParameter(intent, NOTIFICATION_STYLE_ARG);
@@ -400,7 +415,7 @@ public class AudioMediaService extends Service
         // broadcast seek complete intent
         int currentPosition = mp.getCurrentPosition();
         mediaProgressPreferences.putProgress(mediaInfo.streamUrl, currentPosition);
-        intentBroadcaster.currentPosition(currentPosition);
+        intentBroadcaster.currentPosition(currentPosition, mp.getDuration());
     }
 
     @Override
@@ -434,7 +449,7 @@ public class AudioMediaService extends Service
      */
     @Override
     public void onPrepared(MediaPlayer mp) {
-        if (playerAtStates(MediaPlayerState.PREPARING)) {
+        if (playerAtStates("onPrepared(mp)", MediaPlayerState.PREPARING)) {
             setPlayerState(MediaPlayerState.PREPARED);
             if (autoplay) {
                 seekTo(startPlaybackPosition);
@@ -462,7 +477,7 @@ public class AudioMediaService extends Service
      * Safe reset of media Player instance.
      */
     protected void reset(final boolean force) {
-        if (playerNotAtStates(MediaPlayerState.END, MediaPlayerState.ERROR)) {
+        if (playerNotAtStates("reset(force)", MediaPlayerState.END, MediaPlayerState.ERROR)) {
             Log.v(TAG, String.format("Reset player (forced = %s", String.valueOf(force)));
             mediaPlayer.reset();
             loseAudioFocus();
@@ -482,7 +497,7 @@ public class AudioMediaService extends Service
      * @param force if true, it forces to set data source, if state is not IDLE it will reset media player.
      */
     protected void setDataSource(final String url, final boolean force) {
-        if (playerAtStates(MediaPlayerState.IDLE)) {
+        if (playerAtStates("setDataSource(url, force)", MediaPlayerState.IDLE)) {
             try {
                 Log.d(TAG, String.format("Sets data source url = %s", url));
                 mediaPlayer.setDataSource(this, Uri.fromFile(new File(url)));
@@ -517,20 +532,44 @@ public class AudioMediaService extends Service
      * Safe prepare method for media player.
      */
     protected void prepare() {
-        if (playerAtStates(MediaPlayerState.INITIALIZED, MediaPlayerState.STOPPED)) {
-            Log.v(TAG, "Prepares player");
+        if (playerAtStates("prepare()", MediaPlayerState.INITIALIZED, MediaPlayerState.STOPPED)) {
+            Log.v(TAG, "Preparing player");
             mediaPlayer.prepareAsync();
             setPlayerState(MediaPlayerState.PREPARING);
         }
     }
 
     /**
+     * Seeks media player by delta.
+     *
+     * @param positionDetla
+     */
+    protected void seekBy(final int positionDetla) {
+        if (playerAtStates("seekBy(posDelta)", MediaPlayerState.STARTED, MediaPlayerState.COMPLETE,
+                MediaPlayerState.PREPARED, MediaPlayerState.PAUSED)) {
+            // no seek if no value
+            if (positionDetla == 0) {
+                return;
+            }
+            int duration = mediaPlayer.getDuration();
+            int newPosition = mediaPlayer.getCurrentPosition() + positionDetla;
+            if (newPosition < 0) {
+                seekTo(0); //seek to begining
+            } else if (newPosition > duration) {
+                seekTo(duration);// to the end
+            } else {
+                seekTo(newPosition);
+            }
+        }
+    }
+
+    /**
      * Safe seek to media player method.
      *
-     * @param pos
+     * @param pos position in miliseconds
      */
     protected void seekTo(final int pos) {
-        if (playerAtStates(MediaPlayerState.STARTED, MediaPlayerState.COMPLETE,
+        if (playerAtStates("seekTo(pos)", MediaPlayerState.STARTED, MediaPlayerState.COMPLETE,
                 MediaPlayerState.PREPARED, MediaPlayerState.PAUSED)) {
             if (pos > 0) {
                 mediaPlayer.seekTo(pos);
@@ -544,7 +583,7 @@ public class AudioMediaService extends Service
      * Safe start playback MediaPlayer method.
      */
     protected void start() {
-        if (playerAtStates(MediaPlayerState.PREPARED, MediaPlayerState.STARTED,
+        if (playerAtStates("start()", MediaPlayerState.PREPARED, MediaPlayerState.STARTED,
                 MediaPlayerState.PAUSED, MediaPlayerState.COMPLETE)) {
             startPlaybackPosition = 0;
             mediaPlayer.start();
@@ -556,7 +595,9 @@ public class AudioMediaService extends Service
         } else {
             // force
             reset(true);
-            setDataSource(mediaInfo.streamUrl, true);
+            if (mediaInfo != null) {
+                setDataSource(mediaInfo.streamUrl, true);
+            }
         }
     }
 
@@ -564,7 +605,7 @@ public class AudioMediaService extends Service
      * Safe pause playback MediaPlayer method.
      */
     protected void pause() {
-        if (playerAtStates(MediaPlayerState.STARTED)) {
+        if (playerAtStates("pause()", MediaPlayerState.STARTED)) {
             if (mediaInfo != null) {
                 mediaProgressPreferences.putProgress(mediaInfo.streamUrl, mediaPlayer.getCurrentPosition());
             }
@@ -580,7 +621,7 @@ public class AudioMediaService extends Service
      * Safe stop playback MediaPlayer method.
      */
     protected void stop() {
-        if (playerAtStates(MediaPlayerState.STARTED, MediaPlayerState.COMPLETE,
+        if (playerAtStates("stop()", MediaPlayerState.STARTED, MediaPlayerState.COMPLETE,
                 MediaPlayerState.STOPPED, MediaPlayerState.PREPARED, MediaPlayerState.PAUSED)) {
             if (mediaInfo != null) {
                 mediaProgressPreferences.putProgress(mediaInfo.streamUrl, mediaPlayer.getCurrentPosition());
@@ -614,6 +655,7 @@ public class AudioMediaService extends Service
 
     private void updatePositionBroadcast() {
         int positionUpdateTimespan = POSITION_UPDATE_TIMESPAN_DEFAULT;
+        isPositionUpdateActive = true;
         updatesHandler.postDelayed(positionUpdate, positionUpdateTimespan);
     }
 
@@ -791,23 +833,23 @@ public class AudioMediaService extends Service
      * @param states State array
      * @return true if state is currently supported, false if not.
      */
-    private boolean playerAtStates(final MediaPlayerState... states) {
+    private boolean playerAtStates(final String methodSourceTag, final MediaPlayerState... states) {
         StringBuilder expectedState = new StringBuilder("allowed states: [");
         for (MediaPlayerState state : states) {
             expectedState.append(state.toString());
             expectedState.append(", ");
             if (state == playerState) {
                 expectedState.append("]");
-                Log.v(TAG, String.format("Matched expected state %s -> %s", playerState.toString(), expectedState.toString()));
+                Log.v(TAG, String.format("At %s matched expected state %s -> %s", methodSourceTag, playerState.toString(), expectedState.toString()));
                 return true;
             }
         }
         expectedState.append("]");
-        Log.i(TAG, String.format("Player is not in expected state. state = %s, %s", playerState.toString(), expectedState.toString()));
+        Log.i(TAG, String.format("At %s player is not in expected state. state = %s, %s", methodSourceTag, playerState.toString(), expectedState.toString()));
         return false;
     }
 
-    private boolean playerNotAtStates(final MediaPlayerState... states) {
+    private boolean playerNotAtStates(final String methodSourceTag, final MediaPlayerState... states) {
         StringBuilder notExpectedState = new StringBuilder("not allowed states: [");
         boolean gotNotExpectedState = false;
         for (MediaPlayerState state : states) {
@@ -815,13 +857,13 @@ public class AudioMediaService extends Service
             notExpectedState.append(", ");
             if (state != playerState) {
                 notExpectedState.append("]");
-                Log.v(TAG, String.format("Matched not expected state %s -> %s", playerState.toString(), notExpectedState.toString()));
+                Log.v(TAG, String.format("At %s matched not expected state %s -> %s", methodSourceTag, playerState.toString(), notExpectedState.toString()));
                 gotNotExpectedState = true;
             }
         }
         notExpectedState.append("]");
         if (!gotNotExpectedState) {
-            Log.i(TAG, String.format("Player is in expected state. state = %s, %s", playerState.toString(), notExpectedState.toString()));
+            Log.i(TAG, String.format("At %s, player is in expected state. state = %s, %s", methodSourceTag, playerState.toString(), notExpectedState.toString()));
         }
         return !gotNotExpectedState;
     }

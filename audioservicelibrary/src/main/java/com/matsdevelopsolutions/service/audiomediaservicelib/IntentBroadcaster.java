@@ -50,6 +50,10 @@ public class IntentBroadcaster {
      * Media player current position - Intent extra argument.
      */
     public static final String CURRENT_POSITION_ARG = "CURRENT_POSITION_ARG";
+    /**
+     * Media duration - Intent extra argument.
+     */
+    public static final String MEDIA_DURATION_ARG = "MEDIA_DURATION_ARG";
 
     /**
      * Context.
@@ -103,9 +107,10 @@ public class IntentBroadcaster {
      *
      * @param currentPosition
      */
-    public void currentPosition(int currentPosition) {
+    public void currentPosition(int currentPosition, int duration) {
         Intent intent = new Intent(ACTION_CURRENT_POSITION_CHANGE);
         intent.putExtra(CURRENT_POSITION_ARG, currentPosition);
+        intent.putExtra(MEDIA_DURATION_ARG, duration);
         context.sendBroadcast(intent);
     }
 

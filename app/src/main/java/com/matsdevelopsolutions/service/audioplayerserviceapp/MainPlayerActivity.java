@@ -12,6 +12,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
+import android.widget.SeekBar;
 import android.widget.SimpleCursorAdapter;
 import android.widget.TextView;
 
@@ -36,6 +37,12 @@ public class MainPlayerActivity extends AppCompatActivity {
     TextView streamName;
     @Bind(R.id.source_spinner)
     AppCompatSpinner sourceSpinner;
+    @Bind(R.id.media_seekbar)
+    SeekBar seekBar;
+
+    private int mediaPosition = 0;
+    private int mediaDuration = 0;
+
     private MediaInfoBroadcastReceiver mediaInfoBroadcastReceiver = new MediaInfoBroadcastReceiver() {
         @Override
         public void onMediaInfoChanged(@Nullable MediaInfo mediaInfo) {
@@ -44,8 +51,11 @@ public class MainPlayerActivity extends AppCompatActivity {
     };
     private MediaPositionBroadcastReceiver mediaPositionBroadcastReceiver = new MediaPositionBroadcastReceiver() {
         @Override
-        public void onCurrentPositionChanged(int currentPosition) {
-
+        public void onCurrentPositionChanged(int currentPosition, int duration) {
+            mediaPosition = currentPosition;
+            mediaDuration = duration;
+            seekBar.setProgress((int) ((float) currentPosition / (float) duration * 1000));
+            // todo add text time display
         }
     };
     private PlayerStateBroadcastReceiver playerStateBroadcastReceiver = new PlayerStateBroadcastReceiver() {
@@ -60,6 +70,7 @@ public class MainPlayerActivity extends AppCompatActivity {
 
         }
     };
+
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -111,6 +122,17 @@ public class MainPlayerActivity extends AppCompatActivity {
         startService(IntentGenerator.createPlayToggleIntent(this));
     }
 
+    @OnClick(R.id.button_seek_ff)
+    public void seekForward() {
+        startService(IntentGenerator.createSeekByIntent(this, 15000));
+    }
+
+    @OnClick(R.id.button_seek_rew)
+    public void seekBackward() {
+        startService(IntentGenerator.createSeekByIntent(this, -15000));
+    }
+
+
     @Override
     protected void onResume() {
         super.onResume();
@@ -158,6 +180,28 @@ public class MainPlayerActivity extends AppCompatActivity {
                 stop();
             }
         });
+
+        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (fromUser) {
+                    if (mediaDuration > 0) {
+                        int seekPosition = (int) (mediaDuration * ((float) (progress / 1000f)));
+                        startService(IntentGenerator.createSeekIntent(getBaseContext(), seekPosition));
+                    }
+                }
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+
+            }
+        });
     }
 
     private void updateState(MediaPlayerState playerState) {
@@ -182,6 +226,9 @@ public class MainPlayerActivity extends AppCompatActivity {
     }
 
     private void playStream(MediaInfo mediaInfo) {
+        mediaDuration = 0;
+        mediaDuration = 0;
+        seekBar.setProgress(0);
         Intent playIntent = IntentGenerator.createPlayIntent(this, mediaInfo, true);
         startService(playIntent);
     }
