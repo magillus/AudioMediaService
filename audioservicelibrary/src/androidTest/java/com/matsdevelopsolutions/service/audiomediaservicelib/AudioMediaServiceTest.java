@@ -19,13 +19,6 @@ public class AudioMediaServiceTest extends AndroidTestCase {
 
     MockContext context;
 
-    @Override
-    protected void setUp() throws Exception {
-        super.setUp();
-
-        context = new MockContext();
-    }
-
     @LargeTest
     public void testnullMediaInfoBroadcastTestCase() {
         MediaInfoBroadcastReceiver mediaInfoBroadcastReceiver = new MediaInfoBroadcastReceiver() {
@@ -77,12 +70,14 @@ public class AudioMediaServiceTest extends AndroidTestCase {
     public void testMediaPositionBroacastTestCase() {
         MediaPositionBroadcastReceiver receiver = new MediaPositionBroadcastReceiver() {
             @Override
-            public void onCurrentPositionChanged(int currentPosition) {
+            public void onCurrentPositionChanged(int currentPosition, int duration) {
                 assertEquals(currentPosition, 482);
+                assertEquals(duration, 34430);
             }
         };
         Intent intent482 = new Intent(MediaPositionBroadcastReceiver.getIntentFilter().getAction(0));
         intent482.putExtra(IntentBroadcaster.CURRENT_POSITION_ARG, 482);
+        intent482.putExtra(IntentBroadcaster.MEDIA_DURATION_ARG, 34430);
         receiver.onReceive(context, intent482);
     }
 
@@ -98,5 +93,12 @@ public class AudioMediaServiceTest extends AndroidTestCase {
         MediaPlayerState state = MediaPlayerState.PREPARING;
         intent.putExtra(IntentBroadcaster.MEDIA_STATUS_ARG, state);
         receiver.onReceive(context, intent);
+    }
+
+    @Override
+    protected void setUp() throws Exception {
+        super.setUp();
+
+        context = new MockContext();
     }
 }

@@ -123,12 +123,26 @@ public final class IntentGenerator {
      * Creates media player seek intent.
      *
      * @param context context
-     * @param position seek position in seconds
+     * @param position seek position in miliseconds
      * @return seek intent.
      */
     public static Intent createSeekIntent(Context context, final int position) {
         Intent intent = new Intent(AudioMediaService.ACTION_SEEK);
         intent.putExtra(AudioMediaService.SEEK_POSITION_ARG, position);
+        intent.setComponent(new ComponentName(context, AudioMediaService.class));
+        return intent;
+    }
+
+    /**
+     * Creates media player seek by delta intent.
+     *
+     * @param context   context
+     * @param seekDelta seek delta position in miliseconds
+     * @return seek by intent
+     */
+    public static Intent createSeekByIntent(Context context, final int seekDelta) {
+        Intent intent = new Intent(AudioMediaService.ACTION_SEEK_BY);
+        intent.putExtra(AudioMediaService.SEEK_POSITION_DELTA_ARG, seekDelta);
         intent.setComponent(new ComponentName(context, AudioMediaService.class));
         return intent;
     }
