@@ -23,4 +23,47 @@ public class MediaInfo implements Serializable {
      * Media stream url.
      */
     public String streamUrl;
+
+    MediaInfo() {
+    }
+
+    public Builder toBuilder() {
+        return new Builder(this);
+    }
+
+    public static class Builder {
+        private final MediaInfo mediaInfo;
+
+        public Builder(MediaInfo mediaInfo) {
+            this.mediaInfo = mediaInfo;
+        }
+
+        public Builder() {
+            mediaInfo = new MediaInfo();
+        }
+
+        public MediaInfo build() {
+            return mediaInfo;
+        }
+
+        public Builder setTitle(final String title) {
+            mediaInfo.title = title;
+            return this;
+        }
+
+        public Builder setDescription(final String description) {
+            mediaInfo.description = description;
+            return this;
+        }
+
+        public Builder setArtUri(final String artUri) {
+            mediaInfo.artUri = artUri;
+            return this;
+        }
+
+        public Builder setStreamUrl(final String streamUrl) {
+            mediaInfo.streamUrl = streamUrl;
+            return this;
+        }
+    }
 }

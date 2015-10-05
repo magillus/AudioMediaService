@@ -36,11 +36,12 @@ public class IntentGenerationTest {
 
     @Test
     public void generatePlayIntentFromMediaInfoTest() {
-        MediaInfo mediaInfo = new MediaInfo();
-        mediaInfo.streamUrl = "http://stream.com/test";
-        mediaInfo.artUri = "http://testUrlart";
-        mediaInfo.description = "Test stream for UI Testing";
-        mediaInfo.title = "Test 1";
+        MediaInfo mediaInfo = new MediaInfo.Builder()
+                .setStreamUrl("http://stream.com/test")
+                .setTitle("Test 1")
+                .setDescription("Test stream for UI Testing")
+                .setArtUri("http://testUrlart")
+                .build();
         Intent playIntent = IntentGenerator.createPlayIntent(context, mediaInfo, false);
         assertEquals(playIntent.getComponent().getPackageName(), context.getPackageName());
 

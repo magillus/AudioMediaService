@@ -94,11 +94,11 @@ public class MainPlayerActivity extends AppCompatActivity {
     }
 
     public void startPlayback(String path, String title) {
-        MediaInfo mediaInfo = new MediaInfo();
-        mediaInfo.artUri = "https://pmcdeadline2.files.wordpress.com/2014/08/bbc-logo.jpg?w=970";
-        mediaInfo.streamUrl = path;
-        mediaInfo.description = title;
-        mediaInfo.title = title;
+        MediaInfo mediaInfo = new MediaInfo.Builder()
+                .setArtUri("https://pmcdeadline2.files.wordpress.com/2014/08/bbc-logo.jpg?w=970")
+                .setDescription("")
+                .setStreamUrl(path)
+                .setTitle(title).build();
         playStream(mediaInfo);
     }
 
