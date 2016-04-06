@@ -4,7 +4,9 @@ This library is a service for audio media playback, its control and notification
 Service wraps MediaPlayer and manages its state through set of Intents. 
 Also allows small customization of player notification bar.
 
-Work in progress, I planned the releases in roadmap with 1.0 version stable and with most features.
+I will abandon this project because of introduction of MediaBrowserService in support libraries.
+see: http://developer.android.com/samples/MediaBrowserService/project.html and https://www.youtube.com/watch?v=FBC1FgWe5X4
+
 
 
 ##Integration
